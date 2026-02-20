@@ -1185,6 +1185,17 @@ void CBaseDoor::StartBlocked( CBaseEntity *pOther )
 	}
 }
 
+static bool EntityAlwaysBlocks( CBaseEntity *pOther )
+{
+#ifdef PORTAL
+	// Boxes dissolve when crushed
+	if ( FClassnameIs( pOther, "prop_box" ) )
+	{
+		return true;
+	}
+#endif
+	return false;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: Called every frame when the door is blocked while opening or closing.
@@ -1200,7 +1211,7 @@ void CBaseDoor::Blocked( CBaseEntity *pOther )
 		// If block damage is set, but this object is a physics prop that can't be damaged, just
 		// give up and disable collisions
 		if ( (m_bForceClosed || m_flWait < 0) && pOther->GetMoveType() == MOVETYPE_VPHYSICS && 
-		   (pOther->m_takedamage == DAMAGE_NO || pOther->m_takedamage == DAMAGE_EVENTS_ONLY) )
+		   (pOther->m_takedamage == DAMAGE_NO || pOther->m_takedamage == DAMAGE_EVENTS_ONLY) && !EntityAlwaysBlocks( pOther ) )
 		{
 			EntityPhysics_CreateSolver( this, pOther, true, 4.0f );
 		}
