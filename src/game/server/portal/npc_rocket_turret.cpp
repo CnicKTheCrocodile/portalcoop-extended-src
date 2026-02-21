@@ -433,7 +433,7 @@ void CNPC_RocketTurret::Spawn( void )
 
 //ConVar rocket_turret_baseup_offset( "rocket_turret_baseup_offset", "38", FCVAR_CHEAT );
 //ConVar rocket_turret_up_offset( "rocket_turret_up_offset", "1", FCVAR_CHEAT );
-//ConVar rocket_turret_forward_offset( "rocket_turret_forward_offset", "26", FCVAR_CHEAT );
+//ConVar rocket_turret_forward_offset( "rocket_turret_forward_offset", "40", FCVAR_CHEAT );
 //ConVar rocket_turret_right_offset( "rocket_turret_right_offset", "12", FCVAR_CHEAT );
 //ConVar rocket_turret_box_time( "rocket_turret_box_time", "0", FCVAR_CHEAT );
 
@@ -455,7 +455,7 @@ Vector CNPC_RocketTurret::GetMuzzlePos()
 		Vector base = GetAbsOrigin();
 		base += baseUp * 38;
 		base += up * 1;
-		base += forward * 26;
+		base += forward * 40;
 		base -= right * 12;
 		
 		//if (rocket_turret_box_time.GetFloat() != 0.0)
