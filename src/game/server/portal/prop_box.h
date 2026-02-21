@@ -21,6 +21,8 @@ public:
 	void EnergyBallHit( CPropCombineBall *pBall );
 	void PreDissolve( CBaseEntity *pActivator, CBaseEntity *pCaller );
 
+	int OnTakeDamage( const CTakeDamageInfo &info ) OVERRIDE;
+
 	CHandle<CTriggerBoxReflector> m_hAttached;
 
 private:

@@ -72,6 +72,16 @@ void CPropBox::PreDissolve( CBaseEntity *pActivator, CBaseEntity *pCaller )
 	m_OnDissolved.FireOutput( pActivator, pCaller );
 }
 
+int CPropBox::OnTakeDamage( const CTakeDamageInfo &info )
+{
+	// Crushing damage should dissolve the box to prevent boxes from getting stuck
+	if ( info.GetDamageType() & DMG_CRUSH )
+	{
+		CTriggerPortalCleanser::FizzleBaseAnimating( this, NULL );
+	}
+	return BaseClass::OnTakeDamage( info );
+}
+
 void CPropBox::InputDissolve( inputdata_t &inputdata )
 {
 	CTriggerPortalCleanser::FizzleBaseAnimating( this, NULL );

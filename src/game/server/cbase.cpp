@@ -113,6 +113,30 @@ int CEventAction::s_iNextIDStamp = 0;
 #define USE_SERVER_TIME
 #endif
 
+static float GetCurrentTimeForEventQueue( void )
+{
+#ifdef PORTAL // Catch cases where the output was fired while paused
+	extern ConVar pcoop_paused;
+	if ( pcoop_paused.GetBool() )
+	{
+#if defined ( USE_SERVER_TIME )
+		extern float g_flServerTimeWhenPaused;
+		return g_flServerTimeWhenPaused;
+#else
+		extern float g_flTimeWhenPaused;
+		return g_flTimeWhenPaused;
+#endif
+	}
+#endif // PORTAL
+	float currenttime;
+#if defined ( USE_SERVER_TIME )
+	currenttime = engine->GetServerTime();
+#else
+	currenttime = gpGlobals->curtime;
+#endif
+	return currenttime;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Creates an event action and assigns it an unique ID stamp.
 // Input  : ActionData - the map file data block descibing the event action.
@@ -339,11 +363,7 @@ void CBaseEntityOutput::FireOutput(variant_t Value, CBaseEntity *pActivator, CBa
 			Q_snprintf( szBuffer,
 						sizeof(szBuffer),
 						"(%0.2f) output: (%s,%s) -> (%s,%s,%.1f)(%s)\n",
-#ifdef USE_SERVER_TIME
-						engine->GetServerTime(),
-#else
-						gpGlobals->curtime,
-#endif
+						GetCurrentTimeForEventQueue(),
 						pCaller ? STRING(pCaller->m_iClassname) : "NULL",
 						pCaller ? STRING(pCaller->GetEntityName()) : "NULL",
 						STRING(ev->m_iTarget),
@@ -360,11 +380,7 @@ void CBaseEntityOutput::FireOutput(variant_t Value, CBaseEntity *pActivator, CBa
 			Q_snprintf( szBuffer,
 						sizeof(szBuffer),
 						"(%0.2f) output: (%s,%s) -> (%s,%s)(%s)\n",
-#ifdef USE_SERVER_TIME
-						engine->GetServerTime(),
-#else
-						gpGlobals->curtime,
-#endif
+						GetCurrentTimeForEventQueue(),
 						pCaller ? STRING(pCaller->m_iClassname) : "NULL",
 						pCaller ? STRING(pCaller->GetEntityName()) : "NULL", STRING(ev->m_iTarget),
 						STRING(ev->m_iTargetInput),
@@ -865,13 +881,7 @@ void CEventQueue::Dump( void )
 {
 	EventQueuePrioritizedEvent_t *pe = m_Events.m_pNext;
 
-	Msg("Dumping event queue. Current time is: %.2f\n",
-#ifdef USE_SERVER_TIME
-		engine->GetServerTime()
-#else
-		gpGlobals->curtime
-#endif
-		);
+	Msg("Dumping event queue. Current time is: %.2f\n", GetCurrentTimeForEventQueue());
 
 	while ( pe != NULL )
 	{
@@ -899,11 +909,7 @@ void CEventQueue::AddEvent( const char *target, const char *targetInput, variant
 {
 	// build the new event
 	EventQueuePrioritizedEvent_t *newEvent = new EventQueuePrioritizedEvent_t;
-#ifdef USE_SERVER_TIME
-	newEvent->m_flFireTime = engine->GetServerTime() + fireDelay;	// priority key in the priority queue
-#else
-	newEvent->m_flFireTime = gpGlobals->curtime + fireDelay;	// priority key in the priority queue
-#endif
+	newEvent->m_flFireTime = GetCurrentTimeForEventQueue() + fireDelay;	// priority key in the priority queue
 	newEvent->m_iTarget = MAKE_STRING( target );
 	newEvent->m_pEntTarget = NULL;
 	newEvent->m_iTargetInput = MAKE_STRING( targetInput );
@@ -922,11 +928,7 @@ void CEventQueue::AddEvent( CBaseEntity *target, const char *targetInput, varian
 {
 	// build the new event
 	EventQueuePrioritizedEvent_t *newEvent = new EventQueuePrioritizedEvent_t;
-#ifdef USE_SERVER_TIME
-	newEvent->m_flFireTime = engine->GetServerTime() + fireDelay;	// primary priority key in the priority queue
-#else
-	newEvent->m_flFireTime = gpGlobals->curtime + fireDelay;	// primary priority key in the priority queue
-#endif
+	newEvent->m_flFireTime = GetCurrentTimeForEventQueue() + fireDelay;	// primary priority key in the priority queue
 	newEvent->m_iTarget = NULL_STRING;
 	newEvent->m_pEntTarget = target;
 	newEvent->m_iTargetInput = MAKE_STRING( targetInput );
@@ -997,11 +999,7 @@ void CEventQueue::ServiceEvents( void )
 
 	EventQueuePrioritizedEvent_t *pe = m_Events.m_pNext;
 
-#ifdef USE_SERVER_TIME
-	while ( pe != NULL && pe->m_flFireTime <= engine->GetServerTime() )
-#else
-	while ( pe != NULL && pe->m_flFireTime <= gpGlobals->curtime )
-#endif
+	while ( pe != NULL && pe->m_flFireTime <= GetCurrentTimeForEventQueue() )
 	{
 		MDLCACHE_CRITICAL_SECTION();
 
@@ -1093,11 +1091,12 @@ void CEventQueue::RestoreEvents( void )
 #ifdef PORTAL
 #ifdef USE_SERVER_TIME
 	extern float g_flServerTimeWhenPaused;
-	float flAddedTime = engine->GetServerTime() - g_flServerTimeWhenPaused;
+	float flTimeWhenPaused = g_flServerTimeWhenPaused;
 #else
 	extern float g_flTimeWhenPaused;
-	float flAddedTime = gpGlobals->curtime - g_flTimeWhenPaused;
+	float flTimeWhenPaused = g_flTimeWhenPaused;
 #endif
+	float flAddedTime = GetCurrentTimeForEventQueue() - flTimeWhenPaused;
 	
 	// delete all the events in the queue
 	EventQueuePrioritizedEvent_t *pe = g_EventQueue.m_Events.m_pNext;
@@ -1315,11 +1314,7 @@ int CEventQueue::Restore( IRestore &restore )
 			AddEvent( tmpEvent.m_pEntTarget,
 					  STRING(tmpEvent.m_iTargetInput),
 					  tmpEvent.m_VariantValue,
-#ifdef USE_SERVER_TIME
-					  tmpEvent.m_flFireTime - engine->GetServerTime(),
-#else
-					  tmpEvent.m_flFireTime - gpGlobals->curtime,
-#endif
+					  tmpEvent.m_flFireTime - GetCurrentTimeForEventQueue(),
 					  tmpEvent.m_pActivator,
 					  tmpEvent.m_pCaller,
 					  tmpEvent.m_iOutputID );
@@ -1329,11 +1324,7 @@ int CEventQueue::Restore( IRestore &restore )
 			AddEvent( STRING(tmpEvent.m_iTarget),
 					  STRING(tmpEvent.m_iTargetInput),
 					  tmpEvent.m_VariantValue,
-#ifdef USE_SERVER_TIME
-					  tmpEvent.m_flFireTime - engine->GetServerTime(),
-#else
-					  tmpEvent.m_flFireTime - gpGlobals->curtime,
-#endif
+					  tmpEvent.m_flFireTime - GetCurrentTimeForEventQueue(),
 					  tmpEvent.m_pActivator,
 					  tmpEvent.m_pCaller,
 					  tmpEvent.m_iOutputID );
