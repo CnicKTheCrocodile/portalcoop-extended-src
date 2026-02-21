@@ -180,7 +180,7 @@ void CTargetID::Paint()
 					//bShowMyPortalgun = true;
 				}
 
-				UTIL_Portal_ColorSet_Color( ConvertLinkageIDToColorSet( pPortalGunTarget->m_iPortalLinkageGroupID ), c );
+				UTIL_Portal_ColorSet_Color( GetColorSetForPlayer( pPortalGunTarget->m_iValidPlayer ), c );
 			}
 		}
 		else if ( pPortal && hud_showportals.GetBool() )
