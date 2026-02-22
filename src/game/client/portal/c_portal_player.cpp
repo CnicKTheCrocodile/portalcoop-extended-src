@@ -548,7 +548,15 @@ void C_Portal_Player::UpdateIDTarget()
 	
 	UTIL_Portal_TraceRay( ray, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
 #else
-	UTIL_TraceLine( vecStart, vecEnd, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
+	// Finding players requires CONTENTS_WINDOW which is why 2 traces need to be performed
+	const int MASK_TARGET_ID = (CONTENTS_SOLID | CONTENTS_MOVEABLE | CONTENTS_WINDOW | CONTENTS_MONSTER );
+	UTIL_TraceLine( vecStart, vecEnd, MASK_TARGET_ID, this, COLLISION_GROUP_NONE, &tr );
+	if ( tr.m_pEnt && !tr.m_pEnt->IsPlayer() )
+	{		
+		const int MASK_TARGET_ID_NO_PLAYER = (CONTENTS_SOLID | CONTENTS_MOVEABLE | CONTENTS_MONSTER );
+		UTIL_ClearTrace( tr );
+		UTIL_TraceLine( vecStart, vecEnd, MASK_TARGET_ID_NO_PLAYER, this, COLLISION_GROUP_NONE, &tr );
+	}
 #endif
 	
 	if ( !tr.startsolid )
