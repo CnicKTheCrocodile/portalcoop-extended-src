@@ -1827,6 +1827,10 @@ void CProp_Portal::InputSetActivatedState( inputdata_t &inputdata )
 
 void CProp_Portal::InputFizzle( inputdata_t &inputdata )
 {
+	// No need to do the effects if we're inactive
+	if ( !IsActive() )
+		return;
+
 	DoFizzleEffect( PORTAL_FIZZLE_KILLED, GetColorSet(), false );
 	Fizzle();
 }
