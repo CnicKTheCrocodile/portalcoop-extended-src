@@ -1598,7 +1598,7 @@ void CPortal_Player::PlayerDeathThink(void)
 	
 	// wait for any button down,  or mp_forcerespawn is set and the respawn time is up
 	if (!fAnyButtonDown
-		&& !(g_pGameRules->IsMultiplayer() && forcerespawn.GetInt() > 0 && (gpGlobals->curtime > (m_flDeathTime + 5))))
+		&& !(g_pGameRules->IsMultiplayer() && (gpGlobals->curtime > (m_flDeathTime + 5))))
 		return;
 
 	m_nButtons = 0;
