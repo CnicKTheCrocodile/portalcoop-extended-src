@@ -1083,7 +1083,8 @@ void C_Portal_Player::UpdateClientSideAnimation( void )
 	// a third-person camera (and we don't have valid player angles).
 	if ( C_BasePlayer::IsLocalPlayer() )
 	{
-		m_PlayerAnimState->Update( EyeAngles()[YAW], m_angEyeAngles[PITCH] );
+		QAngle eyeAngles = EyeAngles();
+		m_PlayerAnimState->Update( eyeAngles[YAW], eyeAngles[PITCH] );
 	}
 	else
 	{
