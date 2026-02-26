@@ -100,19 +100,22 @@ class CMapSetItemPanelMapSet : public CMapSetItemPanel
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMapSet, CMapSetItemPanel );
 
-	CMapSetItemPanelMapSet( PanelListPanel *parent, const char* name, const char *imagename, KeyValues *mapset ) : BaseClass( parent, name, mapset->GetString( "name" ), imagename, "Resource/MapSetDialogItemPanel.res" )
+	CMapSetItemPanelMapSet( PanelListPanel *parent, const char* name, const char *imagename, const char *titlename, const char *mapsetname, const char *filename ) : BaseClass( parent, name, titlename, imagename, "Resource/MapSetDialogItemPanel.res" )
 	{
-		m_pMapSet = mapset;
+		m_pMapSetsFile = new KeyValues( "mapsets" );
+		m_pMapSetsFile->LoadFromFile( g_pFullFileSystem, filename );
+		
+		V_strcpy( m_szMapSetName, mapsetname );
 
 		m_pParent = parent;
 	}
 
 	~CMapSetItemPanelMapSet()
 	{
-		if ( m_pMapSet )
+		if ( m_pMapSetsFile )
 		{
-			m_pMapSet->deleteThis();
-			m_pMapSet = NULL;
+			m_pMapSetsFile->deleteThis();
+			m_pMapSetsFile = NULL;
 		}
 	}
 	
@@ -152,9 +155,23 @@ public:
 		//PostMessage( m_pParent->GetParent(), new KeyValues("Command", "command", "play") );
 	}
 
-	int GetRequiredPlayers() { return m_pMapSet->GetInt( "required_players" ); }
+	int GetRequiredPlayers() { return GetMapSet()->GetInt("required_players"); }
 
-	KeyValues *m_pMapSet;
+	KeyValues *GetMapSet()
+	{
+		// add chapters to combobox
+		for ( KeyValues *mapset = m_pMapSetsFile->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
+		{
+			if ( !V_strcmp( m_szMapSetName, mapset->GetName() ) )
+			{
+				return mapset;
+			}
+		}
+		return NULL;
+	}
+
+	KeyValues *m_pMapSetsFile;
+	char m_szMapSetName[16];
 };
 
 class CMapSetItemPanelMap : public CMapSetItemPanel
@@ -207,6 +224,7 @@ public:
 //-----------------------------------------------------------------------------
 CMapSetDialog::CMapSetDialog(Panel *parent, const char *panelName) : Frame(parent, panelName)
 {
+	SetDeleteSelfOnClose( true );
 	SetMoveable( true );
 	SetSizeable( false );
 	m_pMapSetList = NULL;
@@ -238,12 +256,12 @@ CMapSetDialog::~CMapSetDialog()
 
 void CMapSetDialog::SetupMapSetList( void )
 {
-	int i = 0;
 	KeyValues *mapsets = new KeyValues( "mapsets" );
-	mapsets->LoadFromFile( g_pFullFileSystem, "scripts/mapsets/mapsets_official.txt" );
+	const char *official_filename = "scripts/mapsets/mapsets_official.txt";
+	mapsets->LoadFromFile( g_pFullFileSystem, official_filename );
 	// Parse the official mapsets first
-	ParseMapSetKeyValues( mapsets, i );
-	//mapsets->deleteThis();
+	ParseMapSetKeyValues( mapsets, official_filename );
+	mapsets->deleteThis();
 	// Now parse custom ones
 	if ( true )
 	{
@@ -271,8 +289,8 @@ void CMapSetDialog::SetupMapSetList( void )
 			char szFullDirectory[_MAX_PATH];
 			Q_snprintf( szFullDirectory, sizeof( szFullDirectory ), "scripts/mapsets/%s/mapsets.txt", pDirFileName );
 			mapsets->LoadFromFile( g_pFullFileSystem, szFullDirectory );
-			ParseMapSetKeyValues( mapsets, i );
-			//mapsets->deleteThis();
+			ParseMapSetKeyValues( mapsets, szFullDirectory );
+			mapsets->deleteThis();
 
 			pDirFileName = g_pFullFileSystem->FindNext( dirHandle );
 		}
@@ -288,7 +306,7 @@ void CMapSetDialog::SetupMapList( CMapSetItemPanelMapSet *pMapPanel )
 
 	// add chapters to combobox
 	KeyValues *maps = NULL;
-	for ( KeyValues *subkey = pMapPanel->m_pMapSet->GetFirstSubKey(); subkey != NULL; subkey = subkey->GetNextKey() )
+	for ( KeyValues *subkey = pMapPanel->GetMapSet()->GetFirstSubKey(); subkey != NULL; subkey = subkey->GetNextKey() )
 	{
 		if ( !V_strcmp( subkey->GetName(), "maps" ) )
 		{
@@ -304,7 +322,7 @@ void CMapSetDialog::SetupMapList( CMapSetItemPanelMapSet *pMapPanel )
 	{
 		char szImage[64];
 		V_snprintf( szImage, sizeof( szImage ), "maps/menu_thumb_%s", map->GetName() );
-		int nRequiredPlayers = pMapPanel->m_pMapSet->GetInt( "required_players" );
+		int nRequiredPlayers = pMapPanel->GetMapSet()->GetInt( "required_players" );
 		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), szImage, map->GetName(), nRequiredPlayers ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
@@ -383,20 +401,18 @@ void CMapSetDialog::OnCommand( const char *command )
 	BaseClass::OnCommand( command );
 }
 
-void CMapSetDialog::ParseMapSetKeyValues( KeyValues *mapsets, int &i )
+void CMapSetDialog::ParseMapSetKeyValues( KeyValues *mapsets, const char *filename )
 {
 	// add chapters to combobox
 	for ( KeyValues *mapset = mapsets->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
 	{
 		char szImage[32];
 		V_snprintf( szImage, sizeof( szImage ), "mapsets/%s", mapset->GetName() );
-		CMapSetItemPanelMapSet *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMapSet( m_pMapSetList, NULL, szImage, mapset ) );
+		CMapSetItemPanelMapSet *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMapSet( m_pMapSetList, NULL, szImage, mapset->GetString( "name" ), mapset->GetName(), filename ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
 		m_pMapSetList->AddItem( NULL, chapterPanel );
-
-		++i;
 	}
 }
 

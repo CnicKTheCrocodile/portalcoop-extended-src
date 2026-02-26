@@ -21,11 +21,11 @@ public:
 
 	void			SetupMapSetList( void );
 	void			SetupMapList( CMapSetItemPanelMapSet *pMapPanel );
-
+	
 	virtual void	ApplySchemeSettings( vgui::IScheme *pScheme );
 	virtual void	OnCommand( const char *command ) OVERRIDE;
 
-	void ParseMapSetKeyValues( KeyValues *mapsets, int &i );
+	void ParseMapSetKeyValues( KeyValues *mapsets, const char *filename );
 
 	char m_szMap[32];
 	int m_nRequiredPlayers;
