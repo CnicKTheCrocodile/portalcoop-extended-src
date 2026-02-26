@@ -6,6 +6,7 @@
 #include "ienginevgui.h"
 #include "filesystem.h"
 #include "portal_shareddefs.h"
+#include "clientsteamcontext.h"
 
 static CMapSetDialog *g_pMapSetDialog = NULL;
 
@@ -203,17 +204,33 @@ public:
 //-----------------------------------------------------------------------------
 CMapSetDialog::CMapSetDialog(Panel *parent, const char *panelName) : Frame(parent, panelName)
 {
-	SetDeleteSelfOnClose(true);
+	SetMoveable( true );
 	SetSizeable( false );
 	m_pMapSetList = NULL;
 	m_pMapList = NULL;
 	
+	ConVarRef sv_use_steam_networking( "sv_use_steam_networking" );
+
+	char sHostname[64];
+	V_sprintf_safe( sHostname, "%s's Server", steamapicontext->SteamFriends()->GetPersonaName() );
+
+	m_pHostnameTextEntry = new vgui::TextEntry( this, "HostNameTextEntry" );
+	m_pHostnameTextEntry->SetText( sHostname );
+
+	m_pPasswordTextEntry = new vgui::TextEntry(this, "PasswordTextEntry");
+	m_pPasswordTextEntry->SetText( "" );
+	
+	m_pSteamNetworkingCheck = new vgui::CheckButton(this, "SteamNetworkingCheck", "#Start_Server_SteamNetworking");
+	m_pSteamNetworkingCheck->SetSelected( sv_use_steam_networking.GetBool() );
+
 	LoadControlSettings( "Resource/MapSetDialog.res" );
 }
 
 CMapSetDialog::~CMapSetDialog()
 {
 	g_pMapSetDialog = NULL;
+	m_pMapList->DeleteAllItems();
+	m_pMapSetList->DeleteAllItems();
 }
 
 void CMapSetDialog::SetupMapSetList( void )
@@ -319,8 +336,17 @@ void CMapSetDialog::OnCommand( const char *command )
 	{
 		if ( m_szMap[0] != 0 )
 		{
-			KeyValues *mapdata = LoadMapDataForMap( m_szMap );
-			int nRequiredPlayers = mapdata->GetInt("required_players");
+			char szBuffer[64];
+			ConVarRef hostname( "hostname" );
+			m_pHostnameTextEntry->GetText( szBuffer, sizeof( szBuffer ) );
+			hostname.SetValue( szBuffer );
+		
+			ConVarRef sv_password( "sv_password" );
+			m_pPasswordTextEntry->GetText( szBuffer, sizeof( szBuffer ) );
+			sv_password.SetValue( szBuffer );
+		
+			ConVarRef sv_use_steam_networking( "sv_use_steam_networking" );
+			sv_use_steam_networking.SetValue( m_pSteamNetworkingCheck->IsSelected() );
 		
 			// Set commentary
 			ConVarRef commentary( "commentary" );
@@ -340,6 +366,9 @@ void CMapSetDialog::OnCommand( const char *command )
 				ConVarRef pcoop_require_all_players_force_amount( "pcoop_require_all_players_force_amount" );
 				pcoop_require_all_players_force_amount.SetValue( -2 );
 			}
+			
+			KeyValues *mapdata = LoadMapDataForMap( m_szMap );
+			int nRequiredPlayers = mapdata->GetInt("required_players");
 
 			char szCommand[128];
 			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", nRequiredPlayers, m_szMap );

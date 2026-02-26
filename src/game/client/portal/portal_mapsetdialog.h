@@ -6,6 +6,8 @@
 
 #include "vgui_controls/Frame.h"
 #include "vgui_controls/PanelListPanel.h"
+#include "vgui_controls/TextEntry.h"
+#include "vgui_controls/CheckButton.h"
 
 class CMapSetItemPanelMapSet;
 
@@ -31,6 +33,10 @@ private:
 
 	vgui::PanelListPanel *m_pMapSetList;
 	vgui::PanelListPanel *m_pMapList;
+	
+	vgui::TextEntry *m_pHostnameTextEntry;
+	vgui::TextEntry *m_pPasswordTextEntry;
+	vgui::CheckButton *m_pSteamNetworkingCheck;
 };
 
 
