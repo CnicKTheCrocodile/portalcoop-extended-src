@@ -322,11 +322,6 @@ void CMapSetDialog::ApplySchemeSettings( vgui::IScheme *pScheme )
 	m_pMapList->SetFirstColumnWidth( 25 );
 	m_pMapList->SetVerticalBufferPixels( 0 );
 	
-	vgui::Button *pPlayButton = dynamic_cast<vgui::Button*>( FindChildByName( "Play" ) );
-	if ( pPlayButton )
-	{
-		pPlayButton->SetCommand( "play" );
-	}
 	SetupMapSetList();
 }
 
@@ -377,6 +372,13 @@ void CMapSetDialog::OnCommand( const char *command )
 			mapdata->deleteThis();
 		}
 		
+		return;
+	}
+	else if ( !stricmp( command, "OpenLegacyServerCreator" ) )
+	{
+		engine->ClientCmd_Unrestricted( "gamemenucommand opencreatemultiplayergamedialog" );
+		OnCommand( "Close" );
+
 		return;
 	}
 	BaseClass::OnCommand( command );
