@@ -165,7 +165,6 @@ int GetRequiredPlayers();
 
 bool PlayerShouldPlay( int index );
 
-bool Map_IsQuickplayAllowed( const char *pMapName );
 bool Map_Is2Player( const char *pMapName );
 bool Map_Is3Player( const char *pMapName );
 
