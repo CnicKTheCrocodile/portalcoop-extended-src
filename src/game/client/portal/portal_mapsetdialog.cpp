@@ -18,7 +18,6 @@ class CMapSetItemPanel : public EditablePanel
 
 	ImagePanel *m_pLevelPicBorder;
 	ImagePanel *m_pLevelPic;
-	ImagePanel *m_pCommentaryIcon;
 	//Label *m_pChapterLabel;
 	Label *m_pChapterNameLabel;
 
@@ -46,7 +45,6 @@ public:
 
 		m_pLevelPicBorder = SETUP_PANEL( new ImagePanel( this, "LevelPicBorder" ) );
 		m_pLevelPic = SETUP_PANEL( new ImagePanel( this, "LevelPic" ) );
-		m_pCommentaryIcon = NULL;
 		m_bIsSelected = false;
 
 		m_iRequiredPlayers = iRequiredPlayers;
@@ -68,7 +66,7 @@ public:
 
 		KeyValues *pKeys = NULL;
 
-		LoadControlSettings( "Resource/PortalNewGameChapterPanel.res", NULL, pKeys );
+		LoadControlSettings( "Resource/MapSetDialogItemPanel.res", NULL, pKeys );
 
 		int px, py;
 		m_pLevelPicBorder->GetPos( px, py );
@@ -100,10 +98,6 @@ public:
 		//{
 			//m_pChapterLabel->SetVisible( false );
 		//}
-		
-		m_pCommentaryIcon = dynamic_cast<ImagePanel*>( FindChildByName( "CommentaryIcon" ) );
-		if ( m_pCommentaryIcon )
-			m_pCommentaryIcon->SetVisible( false );
 	}
 
 	bool IsSelected( void ) const { return m_bIsSelected; }
@@ -160,12 +154,6 @@ public:
 	bool HasBonus()
 	{
 		return m_bHasBonus;
-	}
-
-	void SetCommentaryMode( bool bCommentaryMode )
-	{
-		if ( m_pCommentaryIcon )
-			m_pCommentaryIcon->SetVisible( bCommentaryMode );
 	}
 };
 
