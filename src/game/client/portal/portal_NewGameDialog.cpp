@@ -127,26 +127,29 @@ class CGameChapterPanel : public vgui::EditablePanel
 	Color m_SelectedColor;
 	Color m_FillColor;
 
-	char m_szConfigFile[_MAX_PATH];
-	char m_szChapter[32];
+	char m_szMapSetName[_MAX_PATH];
+	char m_szSelectedMap[_MAX_PATH];
+	int m_iRequiredPlayers;
 
 	bool m_bTeaserChapter;
 	bool m_bHasBonus;
-	bool m_bCommentaryMode;
 
 	bool m_bIsSelected;
 
 public:
-	CGameChapterPanel( CPortalNewGameMapSetPage *parent, const char *name, const char *chapterName, int chapterIndex, const char *chapterNumber, const char *chapterConfigFile, bool bCommentary ) : BaseClass( parent, name )
+	CGameChapterPanel( CPortalNewGameMapSetPage *parent, const char *name, const char *chapterName,
+						int chapterIndex, const char *chapterNumber, const char *mapsetName,
+						int iRequiredPlayers, const char *mapname ) : BaseClass( parent, name )
 	{
-		Q_strncpy( m_szConfigFile, chapterConfigFile, sizeof(m_szConfigFile) );
-		Q_strncpy( m_szChapter, chapterNumber, sizeof(m_szChapter) );
+		Q_strncpy( m_szMapSetName, mapsetName, sizeof(m_szMapSetName) );
+		Q_strncpy( m_szSelectedMap, mapname, sizeof(m_szSelectedMap) );		
 
 		m_pLevelPicBorder = SETUP_PANEL( new ImagePanel( this, "LevelPicBorder" ) );
 		m_pLevelPic = SETUP_PANEL( new ImagePanel( this, "LevelPic" ) );
 		m_pCommentaryIcon = NULL;
-		m_bCommentaryMode = false;
 		m_bIsSelected = false;
+
+		m_iRequiredPlayers = iRequiredPlayers;
 
 		wchar_t text[32];
 		wchar_t num[32];
@@ -154,22 +157,14 @@ public:
 		g_pVGuiLocalize->ConvertANSIToUnicode( chapterNumber, num, sizeof(num) );
 		_snwprintf( text, ARRAYSIZE(text), L"%ls %ls", chapter ? chapter : L"CHAPTER", num );
 
-		if ( !m_bCommentaryMode )
-		{
-			//m_pChapterLabel = new Label( this, "ChapterLabel", text );
-			m_pChapterNameLabel = new Label( this, "ChapterNameLabel", chapterName );
-		}
-		else
-		{
-			//m_pChapterLabel = new Label( this, "ChapterLabel", chapterName );
-			m_pChapterNameLabel = new Label( this, "ChapterNameLabel", "#GameUI_LoadCommentary" );
-		}
+		//m_pChapterLabel = new Label( this, "ChapterLabel", text );
+		m_pChapterNameLabel = new Label( this, "ChapterNameLabel", chapterName );
 
 		SetPaintBackgroundEnabled( false );
 
 		// the image has the same name as the config file
 		char szMaterial[ MAX_PATH ];
-		Q_snprintf( szMaterial, sizeof(szMaterial), "chapters/%s", chapterConfigFile );
+		Q_snprintf( szMaterial, sizeof(szMaterial), "mapsets/%s", mapsetName );
 		char *ext = strstr( szMaterial, "." );
 		if ( ext )
 		{
@@ -214,7 +209,7 @@ public:
 		
 		m_pCommentaryIcon = dynamic_cast<ImagePanel*>( FindChildByName( "CommentaryIcon" ) );
 		if ( m_pCommentaryIcon )
-			m_pCommentaryIcon->SetVisible( m_bCommentaryMode );
+			m_pCommentaryIcon->SetVisible( false );
 	}
 
 	bool IsSelected( void ) const { return m_bIsSelected; }
@@ -248,14 +243,19 @@ public:
 		m_pLevelPic->SetAlpha( 255 );
 	}
 
-	const char *GetConfigFile()
+	const char *GetMapSetName()
 	{
-		return m_szConfigFile;
+		return m_szMapSetName;
 	}
 
-	const char *GetChapter()
+	const char *GetSelectedMap()
 	{
-		return m_szChapter;
+		return m_szSelectedMap;
+	}
+	
+	int GetRequiredPlayers()
+	{
+		return m_iRequiredPlayers;
 	}
 
 	bool IsTeaserChapter()
@@ -270,9 +270,8 @@ public:
 
 	void SetCommentaryMode( bool bCommentaryMode )
 	{
-		m_bCommentaryMode = bCommentaryMode;
 		if ( m_pCommentaryIcon )
-			m_pCommentaryIcon->SetVisible( m_bCommentaryMode );
+			m_pCommentaryIcon->SetVisible( bCommentaryMode );
 	}
 };
 
@@ -286,7 +285,6 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 	m_iSelectedGame = -1;
 	m_ActiveTitleIdx = 0;
 
-	m_bCommentaryMode = bCommentaryMode;
 	m_bScrolling = false;
 	m_ScrollCt = 0;
 	m_ScrollSpeed = 0.f;
@@ -301,7 +299,29 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 	m_pCenterBg->SetVisible( false );
 
 	m_pNewGameDialog = assert_cast<CPortalNewGameDialog*>( parent );
+#if 1 // New system
+	KeyValues *mapsets = new KeyValues( "mapsets" );
+	mapsets->LoadFromFile( g_pFullFileSystem, "scripts/mapsets/mapsets_official.txt" );
+	int i = 0;
+	// add chapters to combobox
+	for ( KeyValues *mapset = mapsets->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
+	{
+		const char *pGameDir = COM_GetModDirectory();
 
+		char chapterName[64];
+		Q_snprintf(chapterName, sizeof(chapterName), mapset->GetString( "name" ), pGameDir );
+
+		int required_players = mapset->GetInt( "required_players" );
+		const char *map = mapset->GetString( "map" );
+		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, 0, mapset->GetName(), required_players, map ) );
+		chapterPanel->SetVisible( true );
+		chapterPanel->InvalidateLayout( true );
+
+		m_GamePanels.AddToTail( chapterPanel );
+
+		++i;
+	}
+#else // Default chapter system
 	// parse out the chapters off disk
 	static const int MAX_CHAPTERS = 32;
 	chapter_t chapters[MAX_CHAPTERS];
@@ -334,20 +354,9 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 		}
 		fileName = g_pFullFileSystem->FindNext(findHandle);
 	}
-
-	bool bBonusesUnlocked = false;
-
+	
 	// sort the chapters
 	qsort(chapters, chapterIndex, sizeof(chapter_t), &ChapterSortFunc);
-
-	// work out which chapters are unlocked
-	ConVarRef var( "sv_unlockedchapters" );
-
-	if ( bBonusesUnlocked )
-	{
-		// Bonuses are unlocked so we need to unlock all the chapters too
-		var.SetValue( 15 );
-	}
 
 	// add chapters to combobox
 	for (int i = 0; i < chapterIndex; i++)
@@ -368,13 +377,13 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 		Q_snprintf(chapterName, sizeof(chapterName), "#%s_Chapter%s_Title", pGameDir, chapterID);
 
 		Q_snprintf( szFullFileName, sizeof( szFullFileName ), "%s", fileName );
-		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, chapterID, szFullFileName, m_bCommentaryMode ) );
+		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, chapterID, szFullFileName ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
 		m_GamePanels.AddToTail( chapterPanel );
 	}
-
+#endif
 	LoadControlSettings( "Resource/PortalNewGameDialogMapSetPage.res", NULL );
 
 	// Reset all properties
@@ -432,10 +441,9 @@ CPortalNewGameMapSetPage::~CPortalNewGameMapSetPage()
 void CPortalNewGameMapSetPage::OnActivate( void )
 {
 	// Commentary stuff is set up on activate because in XBox the new game menu is never deleted
-	//SetTitle( ( ( m_bCommentaryMode ) ? ( "#GameUI_LoadCommentary" ) : ( "#GameUI_NewGame") ), true);
 
 	if ( m_pCommentaryLabel )
-		m_pCommentaryLabel->SetVisible( m_bCommentaryMode );
+		m_pCommentaryLabel->SetVisible( false );
 
 	for ( int i = 0; i < m_GamePanels.Count(); i++)
 	{
@@ -443,7 +451,7 @@ void CPortalNewGameMapSetPage::OnActivate( void )
 
 		if ( pChapterPanel )
 		{
-			pChapterPanel->SetCommentaryMode( m_bCommentaryMode );
+			pChapterPanel->SetCommentaryMode( false );
 			pChapterPanel->SetEnabled( true );
 		}
 	}
@@ -477,7 +485,7 @@ void CPortalNewGameMapSetPage::ApplySchemeSettings( vgui::IScheme *pScheme )
 
 	m_pCommentaryLabel = dynamic_cast<vgui::Label*>( FindChildByName( "CommentaryUnlock" ) );
 	if ( m_pCommentaryLabel )
-		m_pCommentaryLabel->SetVisible( m_bCommentaryMode );
+		m_pCommentaryLabel->SetVisible( false );
 }
 
 static float GetArrowAlpha( void )
@@ -570,7 +578,7 @@ void CPortalNewGameMapSetPage::SetSelectedChapter( const char *chapter )
 	Assert( chapter );
 	for (int i = 0; i < m_GamePanels.Count(); i++)
 	{
-		if ( chapter && !Q_stricmp(m_GamePanels[i]->GetChapter(), chapter) )
+		if ( chapter && !Q_stricmp(m_GamePanels[i]->GetMapSetName(), chapter) )
 		{
 			m_iSelectedGame = i;
 			m_GamePanels[m_iSelectedGame]->SetSelected( true );
@@ -872,16 +880,19 @@ void CPortalNewGameMapSetPage::StartGame( void )
 {
 	if ( m_GamePanels.IsValidIndex( m_iSelectedGame ) )
 	{
+		int nRequiredPlayers = m_GamePanels[m_iSelectedGame]->GetRequiredPlayers();
+		const char *pszMap = m_GamePanels[m_iSelectedGame]->GetSelectedMap();
+
 		char mapcommand[512];
 		mapcommand[0] = 0;
-		Q_snprintf( mapcommand, sizeof( mapcommand ), "wait\nwait\nexec %s\n", m_GamePanels[m_iSelectedGame]->GetConfigFile() );
+		Q_snprintf( mapcommand, sizeof( mapcommand ), "wait\nwait\nmaxplayers %i\nmap %s\n", nRequiredPlayers, pszMap );
 
 		// Set commentary
 		ConVarRef commentary( "commentary" );
-		commentary.SetValue( m_bCommentaryMode );
+		commentary.SetValue( false );
 
 		ConVarRef sv_cheats( "sv_cheats" );
-		sv_cheats.SetValue( m_bCommentaryMode );
+		sv_cheats.SetValue( false );
 		
 		// Also set certain convars that are necessary for a vanilla experience
 		{
@@ -898,7 +909,7 @@ void CPortalNewGameMapSetPage::StartGame( void )
 		if ( IsPC() )
 		{
 			// If commentary is on, we go to the explanation dialog (but not for teaser trailers)
-			if ( m_bCommentaryMode && !m_GamePanels[m_iSelectedGame]->IsTeaserChapter() )
+			if ( false && !m_GamePanels[m_iSelectedGame]->IsTeaserChapter() )
 			{
 				// Check our current state and disconnect us from any multiplayer server we're connected to.
 				// This fixes an exploit where players would click "start" on the commentary dialog to enable

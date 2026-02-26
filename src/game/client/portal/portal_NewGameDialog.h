@@ -89,8 +89,6 @@ public:
 	void			SetSelectedChapter( const char *chapter );
 	void			SetupGamePanels( int index );
 
-	void			SetCommentaryMode( bool bCommentary ) { m_bCommentaryMode = bCommentary; }
-
 	virtual void	OnKeyCodePressed( vgui::KeyCode code );
 	virtual void	OnKeyCodeReleased( vgui::KeyCode code );
 	virtual void	OnThink();
@@ -119,7 +117,6 @@ private:
 	vgui::Button		*m_pPrevButton;
 	vgui::Panel			*m_pCenterBg;
 	vgui::Label			*m_pChapterTitleLabels[2];
-	bool				m_bCommentaryMode;
 	vgui::Label			*m_pCommentaryLabel;
 
 	// Xbox
