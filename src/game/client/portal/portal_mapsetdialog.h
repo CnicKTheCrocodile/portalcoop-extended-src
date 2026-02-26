@@ -16,7 +16,9 @@ public:
 	~CMapSetDialog();
 
 	void			SetupMapLists( void );
+
 	virtual void	ApplySchemeSettings( vgui::IScheme *pScheme );
+	virtual void	OnCommand( const char *command ) OVERRIDE;
 
 	void ParseMapSetKeyValues( KeyValues *mapset, int &i );
 
