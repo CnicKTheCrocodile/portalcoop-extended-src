@@ -138,7 +138,7 @@ class CGameChapterPanel : public vgui::EditablePanel
 
 public:
 	CGameChapterPanel( CPortalNewGameMapSetPage *parent, const char *name, const char *chapterName,
-						int chapterIndex, const char *chapterNumber, const char *mapsetName,
+						int chapterIndex, const char *mapsetName,
 						int iRequiredPlayers, const char *mapname ) : BaseClass( parent, name )
 	{
 		Q_strncpy( m_szMapSetName, mapsetName, sizeof(m_szMapSetName) );
@@ -150,12 +150,6 @@ public:
 		m_bIsSelected = false;
 
 		m_iRequiredPlayers = iRequiredPlayers;
-
-		wchar_t text[32];
-		wchar_t num[32];
-		wchar_t *chapter = g_pVGuiLocalize->Find("#GameUI_Chapter");
-		g_pVGuiLocalize->ConvertANSIToUnicode( chapterNumber, num, sizeof(num) );
-		_snwprintf( text, ARRAYSIZE(text), L"%ls %ls", chapter ? chapter : L"CHAPTER", num );
 
 		//m_pChapterLabel = new Label( this, "ChapterLabel", text );
 		m_pChapterNameLabel = new Label( this, "ChapterNameLabel", chapterName );
@@ -313,7 +307,7 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 
 		int required_players = mapset->GetInt( "required_players" );
 		const char *map = mapset->GetString( "map" );
-		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, 0, mapset->GetName(), required_players, map ) );
+		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, mapset->GetName(), required_players, map ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
