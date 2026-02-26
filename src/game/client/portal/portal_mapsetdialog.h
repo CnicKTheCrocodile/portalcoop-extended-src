@@ -7,6 +7,8 @@
 #include "vgui_controls/Frame.h"
 #include "vgui_controls/PanelListPanel.h"
 
+class CMapSetItemPanelMapSet;
+
 class CMapSetDialog : public vgui::Frame
 {
 public:
@@ -15,12 +17,15 @@ public:
 	CMapSetDialog(Panel *parent, const char *panelName);
 	~CMapSetDialog();
 
-	void			SetupMapLists( void );
+	void			SetupMapSetList( void );
+	void			SetupMapList( CMapSetItemPanelMapSet *pMapPanel );
 
 	virtual void	ApplySchemeSettings( vgui::IScheme *pScheme );
 	virtual void	OnCommand( const char *command ) OVERRIDE;
 
-	void ParseMapSetKeyValues( KeyValues *mapset, int &i );
+	void ParseMapSetKeyValues( KeyValues *mapsets, int &i );
+
+	char m_szMap[32];
 
 private:
 

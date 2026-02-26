@@ -5,6 +5,7 @@
 #include "gameui/MouseMessageForwardingPanel.h"
 #include "ienginevgui.h"
 #include "filesystem.h"
+#include "portal_shareddefs.h"
 
 static CMapSetDialog *g_pMapSetDialog = NULL;
 
@@ -15,23 +16,18 @@ class CMapSetItemPanel : public vgui::EditablePanel
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanel, EditablePanel );
 
-	CMapSetItemPanel( PanelListPanel *parent, const char* name, KeyValues *mapset ) : BaseClass( parent, name )
+	CMapSetItemPanel( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename ) : BaseClass( parent, name )
 	{
-		m_MapSetInfo.iRequiredPlayers = mapset->GetInt("required_players");
-		V_strcpy( m_MapSetInfo.szMap, mapset->GetString( "map" ) );
-		
 		m_pLevelPicBorder = SETUP_PANEL( new ImagePanel( this, "LevelPicBorder" ) );
 		m_pLevelPic = SETUP_PANEL( new ImagePanel( this, "LevelPic" ) );
 		
-		m_pChapterNameLabel = new Label( this, "NameLabel", mapset->GetString( "name" ) );
+		m_pChapterNameLabel = new Label( this, "NameLabel", titlename );
 
 		m_pParent = parent;
 
 		SetPaintBackgroundEnabled( false );
 
-		char szImage[32];
-		V_snprintf( szImage, sizeof( szImage ), "mapsets/%s", mapset->GetName() );
-		m_pLevelPic->SetImage( szImage );
+		m_pLevelPic->SetImage( imagename );
 		
 		LoadControlSettings( "Resource/MapSetDialogItemPanel.res" );
 				
@@ -85,13 +81,7 @@ public:
 		BaseClass::ApplySchemeSettings( pScheme );
 	}
 
-	struct
-	{
-		int iRequiredPlayers;
-		char szMap[MAX_MAP_NAME];
-	} m_MapSetInfo;
-
-private:
+protected:
 	vgui::Label *m_pChapterNameLabel;
 	vgui::PanelListPanel *m_pParent;
 	
@@ -102,6 +92,100 @@ private:
 	Color m_DisabledColor;
 	Color m_SelectedColor;
 	Color m_FillColor;
+};
+
+class CMapSetItemPanelMapSet : public CMapSetItemPanel
+{
+public:
+	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMapSet, CMapSetItemPanel );
+
+	CMapSetItemPanelMapSet( PanelListPanel *parent, const char* name, const char *imagename, KeyValues *mapset ) : BaseClass( parent, name, mapset->GetString( "name" ), imagename )
+	{
+		m_pMapSet = mapset;
+
+		m_pParent = parent;
+	}
+
+	~CMapSetItemPanelMapSet()
+	{
+		if ( m_pMapSet )
+		{
+			m_pMapSet->deleteThis();
+			m_pMapSet = NULL;
+		}
+	}
+	
+	MESSAGE_FUNC_INT( OnPanelSelected, "PanelSelected", state )
+	{
+		if ( state )
+		{
+			//m_pChapterLabel->SetFgColor( m_SelectedColor );
+			m_pLevelPicBorder->SetFillColor( m_SelectedColor );
+			m_pChapterNameLabel->SetFgColor( m_SelectedColor );
+
+			CMapSetDialog *pMapSetDialog = dynamic_cast<CMapSetDialog*>( m_pParent->GetParent() );
+			if ( pMapSetDialog )
+			{
+				pMapSetDialog->SetupMapList( this );
+			}
+		}
+		else
+		{
+			//m_pChapterLabel->SetFgColor( m_TextColor );
+			m_pLevelPicBorder->SetFillColor( m_FillColor );
+			m_pChapterNameLabel->SetFgColor( m_TextColor );
+		}
+
+		PostMessage( m_pParent->GetVParent(), new KeyValues("PanelSelected") );
+	}
+	
+	virtual void OnMouseDoublePressed( vgui::MouseCode code )
+	{
+		// call the panel
+		OnMousePressed( code );
+		//PostMessage( m_pParent->GetParent(), new KeyValues("Command", "command", "play") );
+	}
+
+	int GetRequiredPlayers() { return m_pMapSet->GetInt( "required_players" ); }
+
+	KeyValues *m_pMapSet;
+};
+
+class CMapSetItemPanelMap : public CMapSetItemPanel
+{
+public:
+	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMap, CMapSetItemPanel );
+
+	CMapSetItemPanelMap( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *map ) : BaseClass( parent, name, titlename, imagename )
+	{
+		V_strcpy( m_szMap, map );
+	}
+	
+	MESSAGE_FUNC_INT( OnPanelSelected, "PanelSelected", state )
+	{
+		if ( state )
+		{
+			//m_pChapterLabel->SetFgColor( m_SelectedColor );
+			m_pLevelPicBorder->SetFillColor( m_SelectedColor );
+			m_pChapterNameLabel->SetFgColor( m_SelectedColor );
+
+			CMapSetDialog *pMapSetDialog = dynamic_cast<CMapSetDialog*>( m_pParent->GetParent() );
+			if ( pMapSetDialog )
+			{
+				V_strcpy( pMapSetDialog->m_szMap, m_szMap );
+			}
+		}
+		else
+		{
+			//m_pChapterLabel->SetFgColor( m_TextColor );
+			m_pLevelPicBorder->SetFillColor( m_FillColor );
+			m_pChapterNameLabel->SetFgColor( m_TextColor );
+		}
+
+		PostMessage( m_pParent->GetVParent(), new KeyValues("PanelSelected") );
+	}
+
+	char m_szMap[32];
 };
 
 //-----------------------------------------------------------------------------
@@ -122,14 +206,14 @@ CMapSetDialog::~CMapSetDialog()
 	g_pMapSetDialog = NULL;
 }
 
-void CMapSetDialog::SetupMapLists( void )
+void CMapSetDialog::SetupMapSetList( void )
 {
 	int i = 0;
 	KeyValues *mapsets = new KeyValues( "mapsets" );
 	mapsets->LoadFromFile( g_pFullFileSystem, "scripts/mapsets/mapsets_official.txt" );
 	// Parse the official mapsets first
 	ParseMapSetKeyValues( mapsets, i );
-	mapsets->deleteThis();
+	//mapsets->deleteThis();
 	// Now parse custom ones
 	if ( true )
 	{
@@ -158,12 +242,41 @@ void CMapSetDialog::SetupMapLists( void )
 			Q_snprintf( szFullDirectory, sizeof( szFullDirectory ), "scripts/mapsets/%s/mapsets.txt", pDirFileName );
 			mapsets->LoadFromFile( g_pFullFileSystem, szFullDirectory );
 			ParseMapSetKeyValues( mapsets, i );
-			mapsets->deleteThis();
+			//mapsets->deleteThis();
 
 			pDirFileName = g_pFullFileSystem->FindNext( dirHandle );
 		}
 
 		g_pFullFileSystem->FindClose( dirHandle );
+	}
+}
+
+void CMapSetDialog::SetupMapList( CMapSetItemPanelMapSet *pMapPanel )
+{
+	m_pMapList->DeleteAllItems();
+	memset( m_szMap, 0, sizeof( m_szMap ) );
+
+	// add chapters to combobox
+	KeyValues *maps = NULL;
+	for ( KeyValues *subkey = pMapPanel->m_pMapSet->GetFirstSubKey(); subkey != NULL; subkey = subkey->GetNextKey() )
+	{
+		if ( !V_strcmp( subkey->GetName(), "maps" ) )
+		{
+			maps = subkey;
+			break;
+		}
+	}
+
+	if ( !maps )
+		return;
+	
+	for ( KeyValues *map = maps->GetFirstSubKey(); map != NULL; map = map->GetNextKey() )
+	{
+		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), "mapsets/2player", map->GetName() ) );
+		chapterPanel->SetVisible( true );
+		chapterPanel->InvalidateLayout( true );
+
+		m_pMapList->AddItem( NULL, chapterPanel );
 	}
 }
 
@@ -185,23 +298,44 @@ void CMapSetDialog::ApplySchemeSettings( vgui::IScheme *pScheme )
 	{
 		pPlayButton->SetCommand( "play" );
 	}
-	SetupMapLists();
+	SetupMapSetList();
 }
 
 void CMapSetDialog::OnCommand( const char *command )
 {
 	if ( !V_stricmp( command, "play" ) )
 	{
-		CMapSetItemPanel *pMapPanel = (CMapSetItemPanel *)m_pMapSetList->GetSelectedPanel();
-		if ( pMapPanel )
+		if ( m_szMap[0] != 0 )
 		{
-			const char *pszMap = pMapPanel->m_MapSetInfo.szMap;
-			int nRequiredPlayers = pMapPanel->m_MapSetInfo.iRequiredPlayers;
+			KeyValues *mapdata = LoadMapDataForMap( m_szMap );
+			int nRequiredPlayers = mapdata->GetInt("required_players");
+		
+			// Set commentary
+			ConVarRef commentary( "commentary" );
+			commentary.SetValue( false );
+
+			ConVarRef sv_cheats( "sv_cheats" );
+			sv_cheats.SetValue( false );
+		
+			// Also set certain convars that are necessary for a vanilla experience
+			{
+				ConVarRef pcoop_spectate_after_past_required_players( "pcoop_spectate_after_past_required_players" );
+				pcoop_spectate_after_past_required_players.SetValue( true );
+		
+				ConVarRef pcoop_require_all_players( "pcoop_require_all_players" );
+				pcoop_require_all_players.SetValue( true );
+		
+				ConVarRef pcoop_require_all_players_force_amount( "pcoop_require_all_players_force_amount" );
+				pcoop_require_all_players_force_amount.SetValue( -2 );
+			}
 
 			char szCommand[128];
-			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", nRequiredPlayers, pszMap );
+			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", nRequiredPlayers, m_szMap );
 			engine->ClientCmd_Unrestricted( szCommand );
+
+			mapdata->deleteThis();
 		}
+		
 		return;
 	}
 	BaseClass::OnCommand( command );
@@ -212,7 +346,9 @@ void CMapSetDialog::ParseMapSetKeyValues( KeyValues *mapsets, int &i )
 	// add chapters to combobox
 	for ( KeyValues *mapset = mapsets->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
 	{
-		CMapSetItemPanel *chapterPanel = SETUP_PANEL( new CMapSetItemPanel( m_pMapSetList, NULL, mapset ) );
+		char szImage[32];
+		V_snprintf( szImage, sizeof( szImage ), "mapsets/%s", mapset->GetName() );
+		CMapSetItemPanelMapSet *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMapSet( m_pMapSetList, NULL, szImage, mapset ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
