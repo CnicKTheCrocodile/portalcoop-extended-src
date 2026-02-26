@@ -28,6 +28,7 @@ public:
 	void ParseMapSetKeyValues( KeyValues *mapsets, int &i );
 
 	char m_szMap[32];
+	int m_nRequiredPlayers;
 
 private:
 

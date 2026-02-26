@@ -162,9 +162,10 @@ class CMapSetItemPanelMap : public CMapSetItemPanel
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMap, CMapSetItemPanel );
 		
-	CMapSetItemPanelMap( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *map ) : BaseClass( parent, name, titlename, imagename, "Resource/MapSetDialogItemPanelMap.res" )
+	CMapSetItemPanelMap( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *map, int nRequiredPlayers ) : BaseClass( parent, name, titlename, imagename, "Resource/MapSetDialogItemPanelMap.res" )
 	{
 		V_strcpy( m_szMap, map );
+		m_nRequiredPlayers = nRequiredPlayers;
 	}
 	
 	MESSAGE_FUNC_INT( OnPanelSelected, "PanelSelected", state )
@@ -179,6 +180,7 @@ public:
 			if ( pMapSetDialog )
 			{
 				V_strcpy( pMapSetDialog->m_szMap, m_szMap );
+				pMapSetDialog->m_nRequiredPlayers = m_nRequiredPlayers;
 				vgui::Button *pStartButton = (vgui::Button *)pMapSetDialog->FindChildByName( "Play" );
 				if ( pStartButton )
 				{
@@ -197,6 +199,7 @@ public:
 	}
 
 	char m_szMap[32];
+	int m_nRequiredPlayers;
 };
 
 //-----------------------------------------------------------------------------
@@ -301,7 +304,8 @@ void CMapSetDialog::SetupMapList( CMapSetItemPanelMapSet *pMapPanel )
 	{
 		char szImage[64];
 		V_snprintf( szImage, sizeof( szImage ), "maps/menu_thumb_%s", map->GetName() );
-		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), szImage, map->GetName() ) );
+		int nRequiredPlayers = pMapPanel->m_pMapSet->GetInt( "required_players" );
+		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), szImage, map->GetName(), nRequiredPlayers ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
@@ -361,15 +365,10 @@ void CMapSetDialog::OnCommand( const char *command )
 				ConVarRef pcoop_require_all_players_force_amount( "pcoop_require_all_players_force_amount" );
 				pcoop_require_all_players_force_amount.SetValue( -2 );
 			}
-			
-			KeyValues *mapdata = LoadMapDataForMap( m_szMap );
-			int nRequiredPlayers = mapdata->GetInt("required_players");
 
 			char szCommand[128];
-			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", nRequiredPlayers, m_szMap );
+			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", m_nRequiredPlayers, m_szMap );
 			engine->ClientCmd_Unrestricted( szCommand );
-
-			mapdata->deleteThis();
 		}
 		
 		return;
