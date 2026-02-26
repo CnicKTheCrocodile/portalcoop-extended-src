@@ -37,8 +37,6 @@ public:
 		int px, py;
 		m_pLevelPicBorder->GetPos( px, py );
 		SetSize( m_pLevelPicBorder->GetWide(), py + m_pLevelPicBorder->GetTall() );
-		
-		m_pLevelPicBorder->SetFillColor( m_FillColor );
 	}
 	
 	MESSAGE_FUNC_INT( OnPanelSelected, "PanelSelected", state )
@@ -79,6 +77,8 @@ public:
 		m_SelectedColor = pScheme->GetColor( "NewGame.SelectionColor", Color(255, 255, 255, 255) );
 
 		BaseClass::ApplySchemeSettings( pScheme );
+		
+		m_pLevelPicBorder->SetFillColor( m_FillColor );
 	}
 
 protected:
