@@ -127,6 +127,11 @@ public:
 			if ( pMapSetDialog )
 			{
 				pMapSetDialog->SetupMapList( this );
+				vgui::Button *pStartButton = (vgui::Button *)pMapSetDialog->FindChildByName( "Play" );
+				if ( pStartButton )
+				{
+					pStartButton->SetEnabled( false );
+				}
 			}
 		}
 		else
@@ -173,6 +178,11 @@ public:
 			if ( pMapSetDialog )
 			{
 				V_strcpy( pMapSetDialog->m_szMap, m_szMap );
+				vgui::Button *pStartButton = (vgui::Button *)pMapSetDialog->FindChildByName( "Play" );
+				if ( pStartButton )
+				{
+					pStartButton->SetEnabled( true );
+				}
 			}
 		}
 		else
@@ -272,7 +282,9 @@ void CMapSetDialog::SetupMapList( CMapSetItemPanelMapSet *pMapPanel )
 	
 	for ( KeyValues *map = maps->GetFirstSubKey(); map != NULL; map = map->GetNextKey() )
 	{
-		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), "mapsets/2player", map->GetName() ) );
+		char szImage[64];
+		V_snprintf( szImage, sizeof( szImage ), "maps/menu_thumb_%s", map->GetName() );
+		CMapSetItemPanelMap *chapterPanel = SETUP_PANEL( new CMapSetItemPanelMap( m_pMapSetList, NULL, map->GetString(), szImage, map->GetName() ) );
 		chapterPanel->SetVisible( true );
 		chapterPanel->InvalidateLayout( true );
 
