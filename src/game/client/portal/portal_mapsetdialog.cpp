@@ -80,6 +80,7 @@ public:
 		BaseClass::ApplySchemeSettings( pScheme );
 		
 		m_pLevelPicBorder->SetFillColor( m_FillColor );
+		m_pChapterNameLabel->SetFgColor( m_TextColor );
 	}
 
 protected:
