@@ -16,7 +16,7 @@ class CMapSetItemPanel : public vgui::EditablePanel
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanel, EditablePanel );
 
-	CMapSetItemPanel( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename ) : BaseClass( parent, name )
+	CMapSetItemPanel( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *controlfile ) : BaseClass( parent, name )
 	{
 		m_pLevelPicBorder = SETUP_PANEL( new ImagePanel( this, "LevelPicBorder" ) );
 		m_pLevelPic = SETUP_PANEL( new ImagePanel( this, "LevelPic" ) );
@@ -29,7 +29,7 @@ public:
 
 		m_pLevelPic->SetImage( imagename );
 		
-		LoadControlSettings( "Resource/MapSetDialogItemPanel.res" );
+		LoadControlSettings( controlfile );
 				
 		CMouseMessageForwardingPanel *panel = new CMouseMessageForwardingPanel(this, NULL);
 		panel->SetZPos(2);
@@ -99,7 +99,7 @@ class CMapSetItemPanelMapSet : public CMapSetItemPanel
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMapSet, CMapSetItemPanel );
 
-	CMapSetItemPanelMapSet( PanelListPanel *parent, const char* name, const char *imagename, KeyValues *mapset ) : BaseClass( parent, name, mapset->GetString( "name" ), imagename )
+	CMapSetItemPanelMapSet( PanelListPanel *parent, const char* name, const char *imagename, KeyValues *mapset ) : BaseClass( parent, name, mapset->GetString( "name" ), imagename, "Resource/MapSetDialogItemPanel.res" )
 	{
 		m_pMapSet = mapset;
 
@@ -160,8 +160,8 @@ class CMapSetItemPanelMap : public CMapSetItemPanel
 {
 public:
 	DECLARE_CLASS_SIMPLE( CMapSetItemPanelMap, CMapSetItemPanel );
-
-	CMapSetItemPanelMap( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *map ) : BaseClass( parent, name, titlename, imagename )
+		
+	CMapSetItemPanelMap( PanelListPanel *parent, const char *name, const char *titlename, const char *imagename, const char *map ) : BaseClass( parent, name, titlename, imagename, "Resource/MapSetDialogItemPanelMap.res" )
 	{
 		V_strcpy( m_szMap, map );
 	}
