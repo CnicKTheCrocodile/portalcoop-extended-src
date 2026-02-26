@@ -449,7 +449,19 @@ void CPortalRender::EnteredPortal( CPortalRenderable *pEnteredPortal )
 
 int GetMaxStencilDepth()
 {
-	if ( gpGlobals->maxClients > 2 && r_portal_stencil_depth.GetInt() > MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS) // Limit to 2 in >2 player servers
+	int nRequiredPlayers = GetRequiredPlayers();
+
+	bool bExceedsPlayerCount = false;
+	if ( pcoop_require_all_players.GetBool() )
+	{
+		bExceedsPlayerCount = nRequiredPlayers > 2;
+	}
+	else
+	{
+		bExceedsPlayerCount = gpGlobals->maxClients > 2;
+	}
+
+	if ( bExceedsPlayerCount && r_portal_stencil_depth.GetInt() > MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS) // Limit to 2 in >2 player servers
 	{
 		return MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS;
 	}
