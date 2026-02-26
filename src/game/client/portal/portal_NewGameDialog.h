@@ -78,6 +78,8 @@ public:
 	CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCommentaryMode );
 	~CPortalNewGameMapSetPage();
 
+	void ParseMapSetKeyValues( KeyValues *mapset, int &i );
+
 	virtual void	OnActivate( void );
 
 	virtual void	ApplySettings( KeyValues *inResourceData );
@@ -151,7 +153,7 @@ class CPortalNewGameOptionsDialog : public vgui::PropertyPage
 public:
 	
 	CPortalNewGameOptionsDialog( vgui::Panel *parent );
-	
+
 	vgui::TextEntry *GetHostNameText() { return m_pHostnameTextEntry; }
 	vgui::TextEntry *GetPasswordText() { return m_pPasswordTextEntry; }
 	bool IsSteamNetworkingEnabled() { return m_pSteamNetworkingCheck->IsSelected(); }

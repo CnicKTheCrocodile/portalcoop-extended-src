@@ -293,91 +293,46 @@ CPortalNewGameMapSetPage::CPortalNewGameMapSetPage(vgui::Panel *parent, bool bCo
 	m_pCenterBg->SetVisible( false );
 
 	m_pNewGameDialog = assert_cast<CPortalNewGameDialog*>( parent );
-#if 1 // New system
+
+	int i = 0;
 	KeyValues *mapsets = new KeyValues( "mapsets" );
 	mapsets->LoadFromFile( g_pFullFileSystem, "scripts/mapsets/mapsets_official.txt" );
-	int i = 0;
-	// add chapters to combobox
-	for ( KeyValues *mapset = mapsets->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
+	// Parse the official mapsets first
+	ParseMapSetKeyValues( mapsets, i );
+	mapsets->deleteThis();
+	// Now parse custom ones
+	if ( false )
 	{
-		const char *pGameDir = COM_GetModDirectory();
-
-		char chapterName[64];
-		Q_snprintf(chapterName, sizeof(chapterName), mapset->GetString( "name" ), pGameDir );
-
-		int required_players = mapset->GetInt( "required_players" );
-		const char *map = mapset->GetString( "map" );
-		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, mapset->GetName(), required_players, map ) );
-		chapterPanel->SetVisible( true );
-		chapterPanel->InvalidateLayout( true );
-
-		m_GamePanels.AddToTail( chapterPanel );
-
-		++i;
-	}
-#else // Default chapter system
-	// parse out the chapters off disk
-	static const int MAX_CHAPTERS = 32;
-	chapter_t chapters[MAX_CHAPTERS];
-
-	char szFullFileName[MAX_PATH];
-	int chapterIndex = 0;
-
-	FileFindHandle_t findHandle = FILESYSTEM_INVALID_FIND_HANDLE;
-	const char *fileName = "cfg/chapter*.cfg";
-	fileName = g_pFullFileSystem->FindFirst( fileName, &findHandle );
-
-	while ( fileName && chapterIndex < MAX_CHAPTERS )
-	{
-		if ( fileName[0] )
-		{
-			// Only load chapter configs from the current mod's cfg dir
-			// or else chapters appear that we don't want!
-			Q_snprintf( szFullFileName, sizeof(szFullFileName), "cfg/%s", fileName );
-			FileHandle_t f = g_pFullFileSystem->Open( szFullFileName, "rb", "MOD" );
-			if ( f )
-			{	
-				// don't load chapter files that are empty, used in the demo
-				if ( g_pFullFileSystem->Size(f) > 0	)
-				{
-					Q_strncpy(chapters[chapterIndex].filename, fileName, sizeof(chapters[chapterIndex].filename));
-					++chapterIndex;
-				}
-				g_pFullFileSystem->Close( f );
-			}
-		}
-		fileName = g_pFullFileSystem->FindNext(findHandle);
-	}
+		const char* pCurrentPath = "scripts/mapsets/";
 	
-	// sort the chapters
-	qsort(chapters, chapterIndex, sizeof(chapter_t), &ChapterSortFunc);
+		char szDirectory[_MAX_PATH];
+		Q_snprintf( szDirectory, sizeof( szDirectory ), "%s*", pCurrentPath );
 
-	// add chapters to combobox
-	for (int i = 0; i < chapterIndex; i++)
-	{
-		const char *fileName = chapters[i].filename;
-		char chapterID[32] = { 0 };
-		sscanf(fileName, "chapter%s", chapterID);
-		// strip the extension
-		char *ext = V_stristr(chapterID, ".cfg");
-		if (ext)
+		FileFindHandle_t dirHandle;
+		const char *pDirFileName = g_pFullFileSystem->FindFirst( szDirectory, &dirHandle );
+
+		while (pDirFileName)
 		{
-			*ext = 0;
+			// Skip it if it's not a directory, is the root, is back, or is an invalid folder
+			if ( !g_pFullFileSystem->FindIsDirectory( dirHandle ) || 
+				 Q_strcmp( pDirFileName, "." ) == 0 || 
+				 Q_strcmp( pDirFileName, ".." ) == 0 )
+			{
+				pDirFileName = g_pFullFileSystem->FindNext( dirHandle );
+				continue;
+			}
+
+			mapsets = new KeyValues( "mapsets" );
+			mapsets->LoadFromFile( g_pFullFileSystem, pDirFileName );
+			ParseMapSetKeyValues( mapsets, i );
+			mapsets->deleteThis();
+
+			pDirFileName = g_pFullFileSystem->FindNext( dirHandle );
 		}
 
-		const char *pGameDir = COM_GetModDirectory();
-
-		char chapterName[64];
-		Q_snprintf(chapterName, sizeof(chapterName), "#%s_Chapter%s_Title", pGameDir, chapterID);
-
-		Q_snprintf( szFullFileName, sizeof( szFullFileName ), "%s", fileName );
-		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, chapterID, szFullFileName ) );
-		chapterPanel->SetVisible( true );
-		chapterPanel->InvalidateLayout( true );
-
-		m_GamePanels.AddToTail( chapterPanel );
+		g_pFullFileSystem->FindClose( dirHandle );
 	}
-#endif
+
 	LoadControlSettings( "Resource/PortalNewGameDialogMapSetPage.res", NULL );
 
 	// Reset all properties
@@ -432,6 +387,30 @@ CPortalNewGameMapSetPage::~CPortalNewGameMapSetPage()
 {
 
 }
+
+
+void CPortalNewGameMapSetPage::ParseMapSetKeyValues( KeyValues *mapsets, int &i )
+{
+	// add chapters to combobox
+	for ( KeyValues *mapset = mapsets->GetFirstSubKey(); mapset != NULL; mapset = mapset->GetNextKey() )
+	{
+		const char *pGameDir = COM_GetModDirectory();
+
+		char chapterName[64];
+		Q_snprintf(chapterName, sizeof(chapterName), mapset->GetString( "name" ), pGameDir );
+
+		int required_players = mapset->GetInt( "required_players" );
+		const char *map = mapset->GetString( "map" );
+		CGameChapterPanel *chapterPanel = SETUP_PANEL( new CGameChapterPanel( this, NULL, chapterName, i, mapset->GetName(), required_players, map ) );
+		chapterPanel->SetVisible( true );
+		chapterPanel->InvalidateLayout( true );
+
+		m_GamePanels.AddToTail( chapterPanel );
+
+		++i;
+	}
+}
+
 void CPortalNewGameMapSetPage::OnActivate( void )
 {
 	// Commentary stuff is set up on activate because in XBox the new game menu is never deleted
@@ -1068,7 +1047,7 @@ void CPortalNewGameMapSetPage::OnThink()
 	{
 		OnKeyCodeTyped( code );
 	}
-
+		
 	// PCOOP: This is a horrible hack
 	SetupGamePanels( 0 );
 
