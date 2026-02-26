@@ -15,11 +15,15 @@ public:
 	CMapSetDialog(Panel *parent, const char *panelName);
 	~CMapSetDialog();
 
+	void			SetupMapLists( void );
 	virtual void	ApplySchemeSettings( vgui::IScheme *pScheme );
+
+	void ParseMapSetKeyValues( KeyValues *mapset, int &i );
 
 private:
 
 	vgui::PanelListPanel *m_pMapSetList;
+	vgui::PanelListPanel *m_pMapList;
 };
 
 
