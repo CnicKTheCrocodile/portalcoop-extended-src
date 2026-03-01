@@ -385,9 +385,17 @@ void CMapSetDialog::OnCommand( const char *command )
 				pcoop_require_all_players_force_amount.SetValue( -2 );
 			}
 
+			ConVarRef sv_allow_wait_command( "sv_allow_wait_command" );
+			bool bShouldWait = sv_allow_wait_command.GetBool();
+			sv_allow_wait_command.SetValue( true );
+
+			engine->ExecuteClientCmd(""); // This will allow the wait command instantly
+
 			char szCommand[128];
 			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", m_nRequiredPlayers, m_szMap );
 			engine->ClientCmd_Unrestricted( szCommand );
+
+			sv_allow_wait_command.SetValue( bShouldWait );
 		}
 		
 		return;
