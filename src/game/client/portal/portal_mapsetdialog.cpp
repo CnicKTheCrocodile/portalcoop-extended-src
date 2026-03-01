@@ -339,7 +339,7 @@ void CMapSetDialog::ApplySchemeSettings( vgui::IScheme *pScheme )
 	m_pMapSetList = dynamic_cast<vgui::PanelListPanel*>( FindChildByName( "MapSetList" ) );
 	m_pMapList = dynamic_cast<vgui::PanelListPanel*>( FindChildByName( "MapList" ) );
 
-	m_pMapSetList->SetFirstColumnWidth( 25 );
+	m_pMapSetList->SetFirstColumnWidth( 10 );
 	m_pMapSetList->SetVerticalBufferPixels( 0 );
 	
 	m_pMapList->SetFirstColumnWidth( 25 );
