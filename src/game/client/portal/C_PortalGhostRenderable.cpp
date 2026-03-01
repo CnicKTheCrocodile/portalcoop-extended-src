@@ -57,12 +57,9 @@ void C_PortalGhostRenderable::PerFrameUpdate( void )
 			m_nSkin = pSource->m_nSkin;
 
 			// We need to make sure our ghost also glows like our animating source does.
-
-			pSource->GetGlowEffectColor(&m_flGlowR, &m_flGlowG, &m_flGlowB);
-
-			bool bGlow = ( pSource->IsGlowEnabled() || pSource->IsClientSideGlowEnabled() );
-
-			SetClientSideGlowEnabled( bGlow );
+			//pSource->GetGlowEffectColor(&m_flGlowR, &m_flGlowG, &m_flGlowB);
+			//bool bGlow = ( pSource->IsGlowEnabled() || pSource->IsClientSideGlowEnabled() );
+			//SetClientSideGlowEnabled( bGlow );
 
 #ifdef GHOSTBASEFLEX
 			if ( m_bSourceIsBaseFlex )
