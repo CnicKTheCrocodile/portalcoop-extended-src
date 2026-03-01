@@ -172,7 +172,7 @@ public:
 	}
 
 	KeyValues *m_pMapSetsFile;
-	char m_szMapSetName[16];
+	char m_szMapSetName[32];
 };
 
 class CMapSetItemPanelMap : public CMapSetItemPanel
