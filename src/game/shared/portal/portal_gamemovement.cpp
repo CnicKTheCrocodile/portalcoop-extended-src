@@ -1185,9 +1185,7 @@ void CPortalGameMovement::HandlePortallingLegacy( void )
 		//m_hLinkedPortal->PhysicsNotifyOtherOfUntouch( m_hLinkedPortal, pOther );
 		//pOther->PhysicsNotifyOtherOfUntouch( pOther, m_hLinkedPortal );
 	}
-	
-	pPortalPlayer->SetGroundEntity( NULL );
-	
+
 #ifdef GAME_DLL
 	//NDebugOverlay::Box(ptNewOrigin, Vector(4, 4, 4), -Vector(4, 4, 4), 255, 0, 0, 128, 3.0 );
 #endif
