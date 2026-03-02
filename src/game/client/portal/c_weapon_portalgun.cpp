@@ -1058,7 +1058,7 @@ int C_WeaponPortalgun::DrawModel( int flags )
 
 	int iRetValue = BaseClass::DrawModel( flags );
 
-	if ( iRetValue )
+	if ( iRetValue && (( flags & STUDIO_GLOWING ) == 0) )
 	{
 		DrawEffects( true );
 	}
