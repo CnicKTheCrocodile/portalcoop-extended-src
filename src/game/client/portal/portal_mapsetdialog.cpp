@@ -8,6 +8,7 @@
 #include "portal_shareddefs.h"
 #include "clientsteamcontext.h"
 #include "c_portal_player.h"
+#include "replay/IEngineReplay.h"
 
 static CMapSetDialog *g_pMapSetDialog = NULL;
 
@@ -392,8 +393,7 @@ void CMapSetDialog::OnCommand( const char *command )
 				sv_require_game_install_necessary_for_map.SetValue( 1 );				
 			}
 
-			C_Portal_Player *pLocalPlayer = C_Portal_Player::GetLocalPortalPlayer();
-			bool bCanChangeLevel = pLocalPlayer && pLocalPlayer->IsListenServerHost();
+			bool bCanChangeLevel = g_pEngineClientReplay->IsListenServer();
 
 			char szCommand[256];
 			const char *pszLevelName = engine->GetLevelName();
