@@ -7,6 +7,7 @@
 #include "filesystem.h"
 #include "portal_shareddefs.h"
 #include "clientsteamcontext.h"
+#include "c_portal_player.h"
 
 static CMapSetDialog *g_pMapSetDialog = NULL;
 
@@ -391,9 +392,12 @@ void CMapSetDialog::OnCommand( const char *command )
 				sv_require_game_install_necessary_for_map.SetValue( 1 );				
 			}
 
+			C_Portal_Player *pLocalPlayer = C_Portal_Player::GetLocalPortalPlayer();
+			bool bCanChangeLevel = pLocalPlayer && pLocalPlayer->IsListenServerHost();
+
 			char szCommand[256];
 			const char *pszLevelName = engine->GetLevelName();
-			if ( ( !pszLevelName || pszLevelName[0] == '\0' ) || (gpGlobals->maxClients < m_nRequiredPlayers)) // Create a new server if the maxclients is smaller than the required players
+			if ( ( !pszLevelName || pszLevelName[0] == '\0' ) || (gpGlobals->maxClients < m_nRequiredPlayers) || !bCanChangeLevel ) // Create a new server if the maxclients is smaller than the required players
 			{
 				ConVarRef sv_allow_wait_command( "sv_allow_wait_command" );
 				bool bOldWait = sv_allow_wait_command.GetBool();

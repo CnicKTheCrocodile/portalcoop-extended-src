@@ -407,6 +407,8 @@ C_Portal_Player::C_Portal_Player()
 	m_flDeathCCWeight = 0.0f;
 #endif
 	
+	m_bIsListenServerHost = false;
+
 	ListenForGameEvent( "bonusmap_unlock" );
 	ListenForGameEvent( "advanced_map_complete" );
 	ListenForGameEvent( "RefreshBonusData" );
