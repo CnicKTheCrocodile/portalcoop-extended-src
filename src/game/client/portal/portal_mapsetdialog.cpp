@@ -383,19 +383,34 @@ void CMapSetDialog::OnCommand( const char *command )
 		
 				ConVarRef pcoop_require_all_players_force_amount( "pcoop_require_all_players_force_amount" );
 				pcoop_require_all_players_force_amount.SetValue( -2 );
+				
+				ConVarRef pcoop_ignore_installed_games_check( "pcoop_ignore_installed_games_check" );
+				pcoop_ignore_installed_games_check.SetValue( 0 );
+				
+				ConVarRef sv_require_game_install_necessary_for_map( "sv_require_game_install_necessary_for_map" );
+				sv_require_game_install_necessary_for_map.SetValue( 1 );				
 			}
 
-			ConVarRef sv_allow_wait_command( "sv_allow_wait_command" );
-			bool bShouldWait = sv_allow_wait_command.GetBool();
-			sv_allow_wait_command.SetValue( true );
+			char szCommand[256];
+			const char *pszLevelName = engine->GetLevelName();
+			if ( ( !pszLevelName || pszLevelName[0] == '\0' ) || (gpGlobals->maxClients < m_nRequiredPlayers)) // Create a new server if the maxclients is smaller than the required players
+			{
+				ConVarRef sv_allow_wait_command( "sv_allow_wait_command" );
+				bool bOldWait = sv_allow_wait_command.GetBool();
+				sv_allow_wait_command.SetValue( true );
 
-			engine->ExecuteClientCmd(""); // This will allow the wait command instantly
+				engine->ExecuteClientCmd(""); // This will allow the wait command instantly
 
-			char szCommand[128];
-			V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", m_nRequiredPlayers, m_szMap );
-			engine->ClientCmd_Unrestricted( szCommand );
+				V_snprintf( szCommand, sizeof( szCommand ), "disconnect\nwait\nwait\nmaxplayers %i\nmap %s\n", m_nRequiredPlayers, m_szMap );
+				engine->ClientCmd_Unrestricted( szCommand );
 
-			sv_allow_wait_command.SetValue( bShouldWait );
+				sv_allow_wait_command.SetValue( bOldWait );
+			}
+			else // Otherwise, if the maxclients is big enough to do a level change, then do that instead.
+			{
+				V_snprintf( szCommand, sizeof( szCommand ), "changelevel %s\n", m_szMap );
+				engine->ClientCmd_Unrestricted( szCommand );
+			}
 		}
 		
 		return;
