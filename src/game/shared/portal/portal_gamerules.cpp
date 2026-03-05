@@ -1854,13 +1854,12 @@ void CPortalGameRules::CheckShouldPause( void )
 		if ( pcoop_paused.GetBool() )
 		{
 			// When the game unpauses, do things
-			UnPauseEntities();
-			RestoreEventQueue();
-			
-			ResetAllPauseData();
+			UnPauseEntities();			
 
 			// Set the value
-			pcoop_paused.SetValue( false );			
+			pcoop_paused.SetValue( false );
+			RestoreEventQueue();
+			ResetAllPauseData();
 		}
 	}
 }
