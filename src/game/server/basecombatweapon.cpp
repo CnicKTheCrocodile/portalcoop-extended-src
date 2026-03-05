@@ -517,11 +517,18 @@ void CBaseCombatWeapon::FallInit( void )
 {
 	SetModel( GetWorldModel() );
 	VPhysicsDestroyObject();
-
+#ifdef PORTAL
+	if ( !VPhysicsInitNormal( SOLID_VPHYSICS, GetSolidFlags() | FSOLID_TRIGGER, false ) )
+#else
 	if ( !VPhysicsInitNormal( SOLID_BBOX, GetSolidFlags() | FSOLID_TRIGGER, false ) )
+#endif
 	{
 		SetMoveType( MOVETYPE_FLYGRAVITY );
+#ifdef PORTAL
+		SetSolid( SOLID_VPHYSICS );
+#else
 		SetSolid( SOLID_BBOX );
+#endif
 		AddSolidFlags( FSOLID_TRIGGER );
 	}
 	else
@@ -622,7 +629,11 @@ void CBaseCombatWeapon::Materialize( void )
 		HL2MPRules()->AddLevelDesignerPlacedObject( this );
 	}
 #else
+#ifdef PORTAL
+	SetSolid( SOLID_VPHYSICS );
+#else
 	SetSolid( SOLID_BBOX );
+#endif
 	AddSolidFlags( FSOLID_TRIGGER );
 #endif
 

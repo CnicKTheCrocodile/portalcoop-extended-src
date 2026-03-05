@@ -929,8 +929,10 @@ CInfoPlacementHelper *CWeaponPortalgun::AttemptSnapToPlacementHelper( bool bPort
 #endif
 
 	// re-hit the area near the center of the placement helper. Very small trace is fine
-	Vector vecStartPos = tr.plane.normal + pHelper->GetAbsOrigin();
-	Vector vecDir = -tr.plane.normal;
+	Vector vecDir;
+	pHelper->GetVectors( &vecDir, NULL, NULL );
+	Vector vecStartPos = vecDir + pHelper->GetAbsOrigin();
+	vecDir = -vecDir;
 	VectorNormalize( vecDir );
 	trace_t trHelper;
 	UTIL_TraceLine( vecStartPos, vecStartPos + vecDir*m_fMaxRange1, MASK_SHOT_PORTAL, &traceFilterPortalShot, &trHelper );
@@ -1266,7 +1268,9 @@ bool CWeaponPortalgun::PreThink( void )
 	//Do not interrupt current think function
 	return false;
 }
-
+#if defined ( CLIENT_DLL ) && defined ( DEBUG )
+ConVar cl_test_portalgun_crosshair( "cl_test_portalgun_crosshair", "1", FCVAR_NONE );
+#endif
 void CWeaponPortalgun::Think( void )
 {
 	//Allow descended classes a chance to do something before the think function
@@ -1287,9 +1291,14 @@ void CWeaponPortalgun::Think( void )
 	}
 
 	// Test portal placement
-#ifdef CLIENT_DLL
-	m_fCanPlacePortal1OnThisSurface = ( ( m_bCanFirePortal1 ) ? ( FirePortal( false, 0, 1 ) ) : ( 0.0f ) );
-	m_fCanPlacePortal2OnThisSurface = ( ( m_bCanFirePortal2 ) ? ( FirePortal( true, 0, 2 ) ) : ( 0.0f ) );
+#if defined ( CLIENT_DLL )
+#if defined ( DEBUG )
+	if ( cl_test_portalgun_crosshair.GetBool() )
+#endif
+	{
+		m_fCanPlacePortal1OnThisSurface = ( ( m_bCanFirePortal1 ) ? ( FirePortal( false, 0, 1 ) ) : ( 0.0f ) );
+		m_fCanPlacePortal2OnThisSurface = ( ( m_bCanFirePortal2 ) ? ( FirePortal( true, 0, 2 ) ) : ( 0.0f ) );
+	}
 #else
 	// Draw obtained portal color chips
 	int iSlot1State = ( ( m_bCanFirePortal1 ) ? ( 0 ) : ( 1 ) ); // FIXME: Portal gun might have only red but not blue;

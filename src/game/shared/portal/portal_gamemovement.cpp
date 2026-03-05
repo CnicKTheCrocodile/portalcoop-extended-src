@@ -97,11 +97,11 @@ public:
 
 	virtual bool ShouldHitEntity( IHandleEntity *pHandleEntity, int contentsMask )
 	{
+#if defined ( CLIENT_DLL )
 		// The best solution right now is to make held objects no collide for players to reduce prediction errors
 		CBaseEntity *pEntity = EntityFromEntityHandle( pHandleEntity );
 		if ( pEntity )
 		{
-#if defined ( CLIENT_DLL )
 			CBasePlayer *pLocalPlayer = C_BasePlayer::GetLocalPlayer();
 			if ( pLocalPlayer )
 			{
@@ -111,13 +111,12 @@ public:
 					return false;
 				}
 			}
-#endif
 		}
+#endif
 		return CTraceFilterSimple::ShouldHitEntity( pHandleEntity, contentsMask );
 	}
 };
 
-#define PORTAL_SLIDE_DEBUG
 //-----------------------------------------------------------------------------
 // Purpose: Portal specific movement code
 //-----------------------------------------------------------------------------
@@ -125,7 +124,6 @@ class CPortalGameMovement : public CHL2GameMovement
 {
 	typedef CGameMovement BaseClass;
 public:
-#if 1
 	CPortalGameMovement();
 
 // Overrides
@@ -165,7 +163,6 @@ private:
 
 	Vector m_vMoveStartPosition; //where the player started before the movement code ran
 	Vector m_vVelocityStart;
-#endif
 };
 #if 1
 #if defined( CLIENT_DLL )
@@ -593,16 +590,6 @@ void CPortalGameMovement::PlayerRoughLandingEffects( float fvol )
 void CPortalGameMovement::TracePlayerBBoxForGround2( const Vector& start, const Vector& end, unsigned int fMask,int collisionGroup, trace_t& pm )
 {
 	VPROF( "TracePlayerBBoxForGround" );
-
-	CPortal_Player *pPortalPlayer = static_cast<CPortal_Player *>(player);
-	CProp_Portal *pPlayerPortal = pPortalPlayer->m_hPortalEnvironment;
-
-#ifndef CLIENT_DLL
-	if( pPlayerPortal && pPlayerPortal->m_PortalSimulator.IsReadyToSimulate() == false )
-		pPlayerPortal = NULL;
-#endif
-
-	pPlayerPortal = NULL;
 
 	Ray_t ray;
 	Vector mins, maxs;
@@ -1198,9 +1185,7 @@ void CPortalGameMovement::HandlePortallingLegacy( void )
 		//m_hLinkedPortal->PhysicsNotifyOtherOfUntouch( m_hLinkedPortal, pOther );
 		//pOther->PhysicsNotifyOtherOfUntouch( pOther, m_hLinkedPortal );
 	}
-	
-	pPortalPlayer->SetGroundEntity( NULL );
-	
+
 #ifdef GAME_DLL
 	//NDebugOverlay::Box(ptNewOrigin, Vector(4, 4, 4), -Vector(4, 4, 4), 255, 0, 0, 128, 3.0 );
 #endif

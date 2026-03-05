@@ -251,6 +251,9 @@ void UTIL_Portal_Trace_Filter( CTraceFilterSimpleClassnameList *traceFilterPorta
 	traceFilterPortalShot->AddClassnameToIgnore( "weapon_portalgun" ); 
 	traceFilterPortalShot->AddClassnameToIgnore( "prop_box" ); 
 	traceFilterPortalShot->AddClassnameToIgnore( "prop_radio" ); 
+#ifdef GAME_DLL
+	traceFilterPortalShot->AddClassnameToIgnore( "func_box_reflector_shield" ); 
+#endif
 }
 
 CProp_Portal* UTIL_Portal_FirstAlongRay( const Ray_t &ray, float &fMustBeCloserThan )

@@ -445,8 +445,31 @@ void CPortalRender::EnteredPortal( CPortalRenderable *pEnteredPortal )
 	}
 }
 
+#define MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS 2
 
+int GetMaxStencilDepth()
+{
+	int nRequiredPlayers = GetRequiredPlayers();
 
+	bool bExceedsPlayerCount = false;
+	if ( pcoop_require_all_players.GetBool() )
+	{
+		bExceedsPlayerCount = nRequiredPlayers > 2;
+	}
+	else
+	{
+		bExceedsPlayerCount = gpGlobals->maxClients > 2;
+	}
+
+	if ( bExceedsPlayerCount && r_portal_stencil_depth.GetInt() > MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS) // Limit to 2 in >2 player servers
+	{
+		return MAX_RECURSIVE_VIEWS_IN_GREATER_THAN_2_PLAYER_SERVERS;
+	}
+	else
+	{
+		return r_portal_stencil_depth.GetInt();
+	}
+}
 
    
 bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
@@ -495,7 +518,7 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 	if( iNumRenderablePortals == 0 )
 		return false;
 
-	const int iMaxDepth = MIN( r_portal_stencil_depth.GetInt(), MIN( MAX_PORTAL_RECURSIVE_VIEWS, (1 << materials->StencilBufferBits()) ) - 1 );
+	const int iMaxDepth = MIN( GetMaxStencilDepth(), MIN( MAX_PORTAL_RECURSIVE_VIEWS, (1 << materials->StencilBufferBits()) ) - 1 );
 
 	if( m_iViewRecursionLevel >= iMaxDepth ) //can't support any more views	
 	{

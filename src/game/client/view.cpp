@@ -1073,15 +1073,16 @@ void CViewRender::Render( vrect_t *rect )
 		CViewSetup &viewEye = GetView( eEye );
 
 
-	    static ConVarRef sv_restrict_aspect_ratio_fov( "sv_restrict_aspect_ratio_fov" );
 	    float aspectRatio = engine->GetScreenAspectRatio() * 0.75f;	 // / (4/3)
 	    float limitedAspectRatio = aspectRatio;
+#ifndef PORTAL // For portalcoop, this check isn't necessary
+	    static ConVarRef sv_restrict_aspect_ratio_fov( "sv_restrict_aspect_ratio_fov" );
 	    if ( ( sv_restrict_aspect_ratio_fov.GetInt() > 0 && engine->IsWindowedMode() && gpGlobals->maxClients > 1 ) ||
 		    sv_restrict_aspect_ratio_fov.GetInt() == 2 )
 	    {
 		    limitedAspectRatio = MIN( aspectRatio, 1.85f * 0.75f ); // cap out the FOV advantage at a 1.85:1 ratio (about the widest any legit user should be)
 	    }
-
+#endif
 		viewEye.fov = ScaleFOVByWidthRatio( viewEye.fov, limitedAspectRatio );
 		viewEye.fovViewmodel = ScaleFOVByWidthRatio( viewEye.fovViewmodel, aspectRatio );
 

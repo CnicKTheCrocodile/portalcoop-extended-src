@@ -208,6 +208,8 @@ public:
 		
 	float GetLatestServerTeleport() { return m_fLatestServerTeleport; }
 
+	bool IsListenServerHost( void ) { return m_bIsListenServerHost; }
+
 	bool	m_bIntersectingPortalPlane;
 
 protected:

@@ -1498,7 +1498,16 @@ void CProp_Portal::CreatePortalMicAndSpeakers( void )
 {
 	// Don't use microphones in Rexaura! Many of the button sounds, timers, etc... are louder so both players can hear them, but they're way too loud for Rexaura
 	// Also disable in 3 player, certain things can be LOUD
-	bool bUseMicrophones = sv_portal_game.GetInt() != PORTAL_GAME_REXAURA && ( gpGlobals->maxClients <= 2 );
+	bool bSmallEnoughPlayers = false;
+	if ( pcoop_require_all_players.GetBool() )
+	{
+		bSmallEnoughPlayers = GetRequiredPlayers() <= 2;
+	}
+	else
+	{
+		bSmallEnoughPlayers = gpGlobals->maxClients <= 2;
+	}
+	bool bUseMicrophones = sv_portal_game.GetInt() != PORTAL_GAME_REXAURA && ( bSmallEnoughPlayers );
 
 	if ( !bUseMicrophones )
 		return;
@@ -1827,6 +1836,10 @@ void CProp_Portal::InputSetActivatedState( inputdata_t &inputdata )
 
 void CProp_Portal::InputFizzle( inputdata_t &inputdata )
 {
+	// No need to do the effects if we're inactive
+	if ( !IsActive() )
+		return;
+
 	DoFizzleEffect( PORTAL_FIZZLE_KILLED, GetColorSet(), false );
 	Fizzle();
 }

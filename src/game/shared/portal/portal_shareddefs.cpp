@@ -145,19 +145,6 @@ int GetRequiredPlayers()
 	return nRequiredPlayers;
 }
 
-bool Map_IsQuickplayAllowed( const char *pMapName )
-{
-	for ( int i = 0; i<GetPCoopMapCount(); ++i )
-	{
-		if ( !Q_stricmp( pMapName, g_pszAllPcoopMaps[i] ) )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 bool PlayerShouldPlay( int index )
 {
 	return index <= GetRequiredPlayers();

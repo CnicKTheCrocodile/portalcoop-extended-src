@@ -977,9 +977,10 @@ void FitPortalAroundOtherPortals( const CProp_Portal *pIgnorePortal, Vector &vOr
 
 				Vector vLinkedForward;
 				AngleVectors( qOtherAngles, &vLinkedForward, NULL, NULL );
-
+				
 				// If they're not on the same face then don't worry about overlap
-				if ( vForward.Dot( vLinkedForward ) < 0.95f )
+				if ( (vForward.Dot( vLinkedForward ) < 0.95f) || 
+					(fabs( vOrigin.Dot( vForward ) - vOtherOrigin.Dot( vLinkedForward ) ) > 1.0f) )
 					continue;
 
 				Vector vDiff = vOrigin - pTempPortal->GetLocalOrigin();

@@ -314,14 +314,14 @@ void CGlowObjectManager::GlowObjectDefinition_t::DrawModel()
 {
 	if ( m_hEntity.Get() )
 	{
-		m_hEntity->DrawModel( STUDIO_RENDER );
+		m_hEntity->DrawModel( STUDIO_RENDER | STUDIO_GLOWING );
 		C_BaseEntity *pAttachment = m_hEntity->FirstMoveChild();
 
 		while ( pAttachment != NULL )
 		{
 			if ( !g_GlowObjectManager.HasGlowEffect( pAttachment ) && pAttachment->ShouldDraw() )
 			{
-				pAttachment->DrawModel( STUDIO_RENDER );
+				pAttachment->DrawModel( STUDIO_RENDER | STUDIO_GLOWING );
 			}
 			pAttachment = pAttachment->NextMovePeer();
 		}

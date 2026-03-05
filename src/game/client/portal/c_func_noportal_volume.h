@@ -17,10 +17,10 @@
 #include "cbase.h"
 #include "c_triggers.h"
 
-class C_FuncNoPortalVolume : public C_BaseTrigger
+class C_FuncNoPortalVolume : public C_BaseEntity
 {
 public:
-	DECLARE_CLASS( C_FuncNoPortalVolume, C_BaseTrigger );
+	DECLARE_CLASS( C_FuncNoPortalVolume, C_BaseEntity );
 	DECLARE_CLIENTCLASS()
 
 	C_FuncNoPortalVolume();

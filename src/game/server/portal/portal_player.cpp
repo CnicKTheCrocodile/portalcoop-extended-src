@@ -397,8 +397,6 @@ extern ConVar sv_turbophysics;
 #define VPHYS_MAX_DISTSQR		(VPHYS_MAX_DISTANCE*VPHYS_MAX_DISTANCE)
 #define VPHYS_MAX_VELSQR		(VPHYS_MAX_VEL*VPHYS_MAX_VEL)
 
-ConVar pcoop_restore_players( "pcoop_restore_players", "1", FCVAR_NONE, "If set, player data will be restored after disconnecting, when a new player connects or the previous player reconnects, they will be put back into place." );
-
 struct PortalPlayerRestoreData
 {
 	PortalPlayerRestoreData()
@@ -508,7 +506,7 @@ void ResetPortalPlayerData( void )
 
 void SavePortalPlayerData( CPortal_Player *pPlayer )
 {
-	if ( !pcoop_restore_players.GetBool() )
+	if ( !pcoop_require_all_players.GetBool() )
 		return;
 	
 	if ( PortalGameRules()->m_bDisablePlayerRestore )
@@ -580,7 +578,7 @@ void SavePortalPlayerData( CPortal_Player *pPlayer )
 
 void RestorePortalPlayerData( CPortal_Player *pPlayer )
 {
-	if ( !pcoop_restore_players.GetBool() )
+	if ( !pcoop_require_all_players.GetBool() )
 		return;
 	
 	PortalPlayerRestoreData *data = &g_PortalPlayerRestoreData[pPlayer->entindex()-1];
@@ -1600,7 +1598,7 @@ void CPortal_Player::PlayerDeathThink(void)
 	
 	// wait for any button down,  or mp_forcerespawn is set and the respawn time is up
 	if (!fAnyButtonDown
-		&& !(g_pGameRules->IsMultiplayer() && forcerespawn.GetInt() > 0 && (gpGlobals->curtime > (m_flDeathTime + 5))))
+		&& !(g_pGameRules->IsMultiplayer() && (gpGlobals->curtime > (m_flDeathTime + 5))))
 		return;
 
 	m_nButtons = 0;

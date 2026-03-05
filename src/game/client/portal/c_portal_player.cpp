@@ -407,6 +407,8 @@ C_Portal_Player::C_Portal_Player()
 	m_flDeathCCWeight = 0.0f;
 #endif
 	
+	m_bIsListenServerHost = false;
+
 	ListenForGameEvent( "bonusmap_unlock" );
 	ListenForGameEvent( "advanced_map_complete" );
 	ListenForGameEvent( "RefreshBonusData" );
@@ -548,7 +550,15 @@ void C_Portal_Player::UpdateIDTarget()
 	
 	UTIL_Portal_TraceRay( ray, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
 #else
-	UTIL_TraceLine( vecStart, vecEnd, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
+	// Finding players requires CONTENTS_WINDOW which is why 2 traces need to be performed
+	const int MASK_TARGET_ID = (CONTENTS_SOLID | CONTENTS_MOVEABLE | CONTENTS_WINDOW | CONTENTS_MONSTER );
+	UTIL_TraceLine( vecStart, vecEnd, MASK_TARGET_ID, this, COLLISION_GROUP_NONE, &tr );
+	if ( tr.m_pEnt && !tr.m_pEnt->IsPlayer() )
+	{		
+		const int MASK_TARGET_ID_NO_PLAYER = (CONTENTS_SOLID | CONTENTS_MOVEABLE | CONTENTS_MONSTER );
+		UTIL_ClearTrace( tr );
+		UTIL_TraceLine( vecStart, vecEnd, MASK_TARGET_ID_NO_PLAYER, this, COLLISION_GROUP_NONE, &tr );
+	}
 #endif
 	
 	if ( !tr.startsolid )
@@ -1075,7 +1085,8 @@ void C_Portal_Player::UpdateClientSideAnimation( void )
 	// a third-person camera (and we don't have valid player angles).
 	if ( C_BasePlayer::IsLocalPlayer() )
 	{
-		m_PlayerAnimState->Update( EyeAngles()[YAW], m_angEyeAngles[PITCH] );
+		QAngle eyeAngles = EyeAngles();
+		m_PlayerAnimState->Update( eyeAngles[YAW], eyeAngles[PITCH] );
 	}
 	else
 	{

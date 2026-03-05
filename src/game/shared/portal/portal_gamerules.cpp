@@ -1586,22 +1586,34 @@ ConVar sv_require_game_install_necessary_for_map( "sv_require_game_install_neces
 //=========================================================
 bool CPortalGameRules::ClientConnected( edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen )
 {
-	//bool bIsHost = false;
-	//if ( !engine->IsDedicatedServer() )
-	//{
-	//	bIsHost = index == 1;
-	//}
-	if ( sv_require_game_install_necessary_for_map.GetBool()
-		//&& !bIsHost // Don't kick the listen server host!
-		) 
+	bool bIsHost = false;
+	int index = ENTINDEX( pEntity );
+	if ( !engine->IsDedicatedServer() )
 	{
-		int index = ENTINDEX( pEntity );
+		bIsHost = index == 1;
+	}
+
+	if ( pcoop_require_all_players.GetBool() )
+	{
+		if ( bIsHost )
+		{
+			int nRequiredPlayers = GetRequiredPlayers();
+			if ( nRequiredPlayers > gpGlobals->maxClients )
+			{
+				Q_strncpy( reject, UTIL_VarArgs( "This map needs the maxplayers amount set to %i or higher", nRequiredPlayers ), maxrejectlen );
+				return false;
+			}
+		}
+	}
+
+	if ( sv_require_game_install_necessary_for_map.GetBool() ) 
+	{
 		int nInstallBits = atoi( engine->GetClientConVarValue( index, "cl_game_install_bits" ) );
 
 		// Check to see if Portal is mounted, this may be unnecessary since there's already an engine crash if Portal isn't installed
 		if ( ( nInstallBits & INSTALL_BITS_PORTAL ) == 0 )
 		{
-			Q_strncpy( reject, "Portal must be installed to play on this server\n", maxrejectlen );
+			Q_strncpy( reject, "Portal must be installed to play on this server", maxrejectlen );
 			return false;
 		}
 		
@@ -1613,7 +1625,7 @@ bool CPortalGameRules::ClientConnected( edict_t *pEntity, const char *pszName, c
 			{
 				if ( ( nInstallBits & INSTALL_BITS_REXAURA ) == 0 )
 				{
-					Q_strncpy( reject, "Rexaura must be installed to play on this map, see readme.txt for install instructions\n", maxrejectlen );
+					Q_strncpy( reject, "Rexaura must be installed to play on this map, see readme.txt for install instructions", maxrejectlen );
 					return false;
 				}
 				break;
@@ -1842,13 +1854,12 @@ void CPortalGameRules::CheckShouldPause( void )
 		if ( pcoop_paused.GetBool() )
 		{
 			// When the game unpauses, do things
-			UnPauseEntities();
-			RestoreEventQueue();
-			
-			ResetAllPauseData();
+			UnPauseEntities();			
 
 			// Set the value
-			pcoop_paused.SetValue( false );			
+			pcoop_paused.SetValue( false );
+			RestoreEventQueue();
+			ResetAllPauseData();
 		}
 	}
 }

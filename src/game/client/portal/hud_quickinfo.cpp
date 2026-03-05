@@ -101,6 +101,8 @@ void CHUDQuickInfo::ApplySchemeSettings( IScheme *scheme )
 	BaseClass::ApplySchemeSettings( scheme );
 
 	SetPaintBackgroundEnabled( false );
+
+	SetSize( ScreenWidth(), ScreenHeight() );
 }
 
 
