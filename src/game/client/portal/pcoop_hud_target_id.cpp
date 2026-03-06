@@ -38,6 +38,7 @@ public:
 	CTargetID( const char *pElementName );
 	void Init( void );
 	virtual void	ApplySchemeSettings( vgui::IScheme *scheme );
+	virtual bool	ShouldDraw( void ) OVERRIDE;
 	virtual void	Paint( void );
 	void VidInit( void );
 
@@ -96,6 +97,19 @@ void CTargetID::VidInit()
 	m_flLastChangeTime = 0;
 	m_flLastPortalChangeTime = 0;
 	m_hLastEnt = NULL;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Draw function for the element
+//-----------------------------------------------------------------------------
+bool CTargetID::ShouldDraw()
+{
+	extern ConVar pcoop_paused;
+	if ( pcoop_paused.GetBool() )
+	{
+		return false;
+	}
+	return CHudElement::ShouldDraw();
 }
 
 //-----------------------------------------------------------------------------
