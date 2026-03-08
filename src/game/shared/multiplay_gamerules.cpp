@@ -862,7 +862,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 			{
 				killer_weapon_name = STRING( pInflictor->m_iClassname );
 			}
-
+#ifndef PORTAL
 			// strip the NPC_* or weapon_* from the inflictor's classname
 			if ( strncmp( killer_weapon_name, "weapon_", 7 ) == 0 )
 			{
@@ -876,6 +876,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 			{
 				killer_weapon_name += 5;
 			}
+#endif
 		}
 
 		IGameEvent * event = gameeventmanager->CreateEvent( "player_death" );
