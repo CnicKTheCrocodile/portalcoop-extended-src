@@ -109,6 +109,12 @@ bool CTargetID::ShouldDraw()
 	{
 		return false;
 	}
+
+	if ( !hud_showtargetid.GetBool() )
+	{
+		return false;
+	}
+
 	return CHudElement::ShouldDraw();
 }
 
