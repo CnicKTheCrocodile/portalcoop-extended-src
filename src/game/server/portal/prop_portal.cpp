@@ -256,6 +256,9 @@ void CProp_Portal::Precache( void )
 	PrecacheParticleSystem("portal_1_stolen");
 	PrecacheParticleSystem("portal_2_stolen");
 
+	PrecacheModel( "models/portals/portal1_id2.mdl" );
+	PrecacheModel( "models/portals/portal2_id2.mdl" );
+
 	PrecacheParticleSystem("portal_red_particles");
 	PrecacheParticleSystem("portal_red_edge");
 	PrecacheParticleSystem("portal_red_nofit");
@@ -280,6 +283,9 @@ void CProp_Portal::Precache( void )
 	PrecacheParticleSystem("portal_yellow_success");
 	PrecacheParticleSystem("portal_yellow_stolen");
 
+	PrecacheModel( "models/portals/portal1_id1.mdl" );
+	PrecacheModel( "models/portals/portal2_id1.mdl" );
+
 	PrecacheParticleSystem("portal_lightblue_particles");
 	PrecacheParticleSystem("portal_lightblue_edge");
 	PrecacheParticleSystem("portal_lightblue_nofit");
@@ -303,6 +309,9 @@ void CProp_Portal::Precache( void )
 	PrecacheParticleSystem("portal_purple_near");
 	PrecacheParticleSystem("portal_purple_success");
 	PrecacheParticleSystem("portal_purple_stolen");
+
+	PrecacheModel( "models/portals/portal1_id3.mdl" );
+	PrecacheModel( "models/portals/portal2_id3.mdl" );
 
 	PrecacheParticleSystem("portal_green_particles");
 	PrecacheParticleSystem("portal_green_edge");
@@ -489,10 +498,16 @@ bool CProp_Portal::IsActivedAndLinked( void ) const
 
 void CProp_Portal::ResetModel( void )
 {
-	if( !m_bIsPortal2 )
-		SetModel( "models/portals/portal1.mdl" );
+	int iPortalColorSet = ConvertLinkageIDToColorSet(GetLinkageGroup());
+
+	if (iPortalColorSet == PORTAL_COLOR_SET_LIGHTBLUE_PURPLE)
+		SetModel( (m_bIsPortal2) ? ("models/portals/portal2_id1.mdl") : ("models/portals/portal1_id1.mdl") );
+	else if (iPortalColorSet == PORTAL_COLOR_SET_YELLOW_RED)
+		SetModel( (m_bIsPortal2) ? ("models/portals/portal2_id2.mdl") : ("models/portals/portal1_id2.mdl") );
+	else if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
+		SetModel( (m_bIsPortal2) ? ("models/portals/portal2_id3.mdl") : ("models/portals/portal1_id3.mdl") );
 	else
-		SetModel( "models/portals/portal2.mdl" );
+		SetModel( (m_bIsPortal2) ? ("models/portals/portal2.mdl") : ("models/portals/portal1.mdl") );
 
 	SetSize( CProp_Portal_Shared::vLocalMins, CProp_Portal_Shared::vLocalMaxs );
 
