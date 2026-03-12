@@ -3375,10 +3375,25 @@ int CPSCollisionEntity::ObjectCaps( void )
 
 bool CPSCollisionEntity::ShouldCollide( int collisionGroup, int contentsMask ) const
 {
+    // Portal simulator collision entities are used internally to proxy the static
+    // geometry of a portal environment.  Normally we just defer to the world for
+    // collision rules, but players running into this entity can lead to problems
+    // (see crash when player is crushed by func_door while touching the proxy).
+    // Prevent any player from colliding with the collision entity entirely.
+
+    // The collisionGroup parameter refers to the other object.  Players use
+    // COLLISION_GROUP_PLAYER and COLLISION_GROUP_PLAYER_MOVEMENT, so filter those
+    // out here before deferring to world rules.
+    if ( collisionGroup == COLLISION_GROUP_PLAYER ||
+         collisionGroup == COLLISION_GROUP_PLAYER_MOVEMENT )
+    {
+        return false;
+    }
+
 #ifdef GAME_DLL
-	return GetWorldEntity()->ShouldCollide( collisionGroup, contentsMask );
+    return GetWorldEntity()->ShouldCollide( collisionGroup, contentsMask );
 #else
-	return GetClientWorldEntity()->ShouldCollide( collisionGroup, contentsMask );
+    return GetClientWorldEntity()->ShouldCollide( collisionGroup, contentsMask );
 #endif
 }
 
