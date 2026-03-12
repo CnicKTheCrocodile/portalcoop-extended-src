@@ -140,9 +140,7 @@ public:
 		// stationary so that it doesn't change
 		// its target based on its offset
 		
-		Vector vEyePos;
-		vEyePos[2] = 40.0;
-		return GetAbsOrigin() + vEyePos;
+		return GetAbsOrigin() + Vector( 0, 0, 40.0 );
 
 		/* 
 		Vector vMuzzlePos;
@@ -1013,8 +1011,7 @@ void CNPC_RocketTurret::HackFindEnemy(void)
 		{
 			SetEnemy( pNearest );
 		}
-#if 0
-		// No enemy still? Then do this hack.
+		// No enemy still? Then manually search for visible players.
 		if ( GetEnemy() == NULL )
 		{
 			for (int i = 1; i <= gpGlobals->maxClients; ++i)
@@ -1043,7 +1040,6 @@ void CNPC_RocketTurret::HackFindEnemy(void)
 				}				
 			}
 		}
-#endif
 	}
 
 	/*
