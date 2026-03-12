@@ -48,6 +48,34 @@ PortalColorSet_t GetColorSetForPlayer( int iPlayer )
 	return ConvertLinkageIDToColorSet( iPlayer );
 }
 
+// -----------------------------------------------------------------------------
+// per-player colour helpers
+// -----------------------------------------------------------------------------
+
+Color GetPlayerColor( int iPlayer )
+{
+	// note: player indices start at 1 and go up to MAX_PLAYERS.
+	// if you want to supply a colour for additional slots just update the
+	// macro definitions in the header or add a table here.
+	switch ( iPlayer )
+	{
+	case 1: return PLAYER1_COLOR;
+	case 2: return PLAYER2_COLOR;
+	case 3: return PLAYER3_COLOR;
+	default: return PLAYER_DEFAULT_COLOR;
+	}
+}
+
+Vector GetPlayerGlowColor( int iPlayer )
+{
+	Color col = GetPlayerColor( iPlayer );
+	Vector v;
+	v.x = (float)col.r() / 255.0f;
+	v.y = (float)col.g() / 255.0f;
+	v.z = (float)col.b() / 255.0f;
+	return v;
+}
+
 KeyValues *LoadRadioData()
 {	
 	KeyValues *radios = new KeyValues( "radios.txt" );

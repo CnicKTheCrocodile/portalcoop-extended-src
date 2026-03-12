@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright ï¿½ 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose:	Player for Portal.
 //
@@ -694,11 +694,11 @@ ConVar sv_portal_coop_ping_indicator_show_to_all_players( "sv_portal_coop_ping_i
 ConVar sv_portal_coop_allow_ping("sv_portal_coop_allow_ping", "1", FCVAR_REPLICATED, "Sets if players are allowed to ping");
 
 #define COOP_PING_SOUNDSCRIPT_NAME "Player.Coop_Ping"
-#define COOP_PING_HUD_SOUNDSCRIPT_NAME "npc/roller/mine/rmine_chirp_answer1.wav"
+#define COOP_PING_HUD_SOUNDSCRIPT_NAME "Player.Coop_Ping_Hud" //"npc/roller/mine/rmine_chirp_answer1.wav"
 //#define COOP_PING_PARTICLE_NAME "command_target_ping"
+#define COOP_PING_PARTICLE_DEFAULT "command_target_ping"
+#define COOP_PING_PARTICLE_NAME_BLUE "command_target_ping_blue"
 #define COOP_PING_PARTICLE_NAME_ORANGE "command_target_ping_orange"
-#define COOP_PING_PARTICLE_NAME_RED "command_target_ping_red"
-#define COOP_PING_PARTICLE_NAME_LIGHTBLUE "command_target_ping_lightblue"
 #define COOP_PING_PARTICLE_NAME_GREEN "command_target_ping_green"
 
 extern float IntervalDistance(float x, float x0, float x1);
@@ -796,12 +796,13 @@ void CPortal_Player::Precache(void)
 		PrecacheModel(g_ppszPortalMPModels[i]);
 	
 	//PrecacheParticleSystem( COOP_PING_PARTICLE_NAME );
+	PrecacheParticleSystem( COOP_PING_PARTICLE_DEFAULT );
 	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_ORANGE );
-	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_RED );
-	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_LIGHTBLUE );
+	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_BLUE );
 	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_GREEN );
 	//PrecacheParticleSystem( "command_target_ping_just_arrows" );
 	PrecacheScriptSound( COOP_PING_SOUNDSCRIPT_NAME );
+	PrecacheScriptSound( COOP_PING_HUD_SOUNDSCRIPT_NAME );
 
 	PrecacheScriptSound("PortalPlayer.EnterPortal");
 	PrecacheScriptSound("PortalPlayer.ExitPortal");
@@ -905,7 +906,8 @@ const char *s_pHudHintContext = "HudHintContext";
 void CPortal_Player::Spawn(void)
 {
 	Vector vColor;
-	UTIL_Portal_ColorSet_GlowColor( GetColorSetForPlayer( entindex() ), vColor );
+	// use per-player colour instead of generic portal colour set
+	vColor = GetPlayerGlowColor( entindex() );
 
 	m_flGlowR.Set( vColor.x );
 	m_flGlowG.Set( vColor.y );
@@ -1169,7 +1171,11 @@ void ShowAnnotation( Vector location, int follow_entindex, int entindex, int for
 		pEvent->SetFloat( "worldPosY", location.y );
 		pEvent->SetFloat( "worldPosZ", location.z );
 		pEvent->SetFloat( "lifetime", PINGTIME );
-		pEvent->SetString( "play_sound", COOP_PING_HUD_SOUNDSCRIPT_NAME );
+		//pEvent->SetString( "play_sound", COOP_PING_HUD_SOUNDSCRIPT_NAME );
+		// IGameEvent has no EmitSound method; play the ping sound explicitly instead.
+		// Sound scripts added via the event would get prefixed with "sound/" on the client,
+		// so we emit the script from the owning entity here.
+		
 		if ( follow_entindex != -1 )
 			pEvent->SetInt( "follow_entindex", follow_entindex );
 		pEvent->SetInt( "owner_entindex", entindex );
@@ -1178,6 +1184,16 @@ void ShowAnnotation( Vector location, int follow_entindex, int entindex, int for
 			pEvent->SetInt( "forcedpingicon", forcedpingicon );
 
 		gameeventmanager->FireEvent( pEvent );
+	}
+
+	// Emit the ping sound from the owner (or world if invalid)
+	if ( entindex != -1 )
+	{
+		CBaseEntity *pOwner = UTIL_EntityByIndex( entindex );
+		if ( pOwner )
+		{
+			pOwner->EmitSound( COOP_PING_HUD_SOUNDSCRIPT_NAME );
+		}
 	}
 }
 
@@ -1286,9 +1302,8 @@ void CPortal_Player::PlayCoopPingEffect( void )
 		
 		CDisablePredictionFiltering filter(true);
 		
-		// Get our ping color information
-		Vector vColor;
-		UTIL_Portal_ColorSet_GlowColor( GetColorSetForPlayer( entindex() ), vColor );
+		// Get our ping color information using the player index
+		Vector vColor = GetPlayerGlowColor( entindex() );
 		
 		// Get the base animating
 		CBaseAnimating *pAnimating = tr.m_pEnt ? tr.m_pEnt->GetBaseAnimating() : NULL;
@@ -1343,13 +1358,13 @@ void CPortal_Player::PlayCoopPingEffect( void )
 		{
 			PortalColorSet_t iPortalColorSet = GetColorSetForPlayer( entindex() );
 			if (iPortalColorSet == PORTAL_COLOR_SET_LIGHTBLUE_PURPLE)
-				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_LIGHTBLUE, tr.endpos, angNormal, this );
+				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_BLUE, tr.endpos, angNormal, this );
 			else if (iPortalColorSet == PORTAL_COLOR_SET_YELLOW_RED)
-				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_RED, tr.endpos, angNormal, this );
+				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_ORANGE, tr.endpos, angNormal, this );
 			else if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
 				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_GREEN, tr.endpos, angNormal, this );
 			else
-				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_ORANGE, tr.endpos, angNormal, this );
+				DispatchParticleEffect( COOP_PING_PARTICLE_DEFAULT, tr.endpos, angNormal, this );
 
 			ShowAnnotation( tr.endpos, -1, entindex() );
 		}

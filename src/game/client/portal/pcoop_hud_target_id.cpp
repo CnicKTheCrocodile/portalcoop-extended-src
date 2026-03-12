@@ -13,6 +13,7 @@
 #include "iclientmode.h"
 #include "vgui/ILocalize.h"
 #include "portal_gamerules.h"
+#include "portal_shareddefs.h"
 #include "c_weapon_portalgun.h"
 #include <string>
 #include "view.h"
@@ -200,7 +201,7 @@ void CTargetID::Paint()
 					//bShowMyPortalgun = true;
 				}
 
-				UTIL_Portal_ColorSet_Color( GetColorSetForPlayer( pPortalGunTarget->m_iValidPlayer ), c );
+				c = GetPlayerColor( pPortalGunTarget->m_iValidPlayer );
 			}
 		}
 		else if ( pPortal && hud_showportals.GetBool() )
@@ -242,7 +243,7 @@ void CTargetID::Paint()
 		{
 			bShowPlayerName = true;
 			g_pVGuiLocalize->ConvertANSIToUnicode( pTargetPlayer->GetPlayerName(),  wszPlayerName, sizeof(wszPlayerName) );
-			UTIL_Portal_ColorSet_Color( GetColorSetForPlayer( pTargetPlayer->entindex() ), c );
+			c = GetPlayerColor( pTargetPlayer->entindex() );
 			//if (!pTargetPlayer->IsLocalPlayer())
 				printFormatString = "#Playerid_name";
 				//else

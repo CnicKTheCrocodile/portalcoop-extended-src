@@ -10,7 +10,6 @@
 #pragma once
 #endif
 
-
 #define PORTAL_HALF_WIDTH 32.0f
 #define PORTAL_HALF_HEIGHT 54.0f
 #define PORTAL_HALF_DEPTH 2.0f
@@ -114,6 +113,26 @@ enum PortalColorSet_t
 
 #define PORTAL_COLOR_GREEN Color(0,255,0,255)
 #define PORTAL_COLOR_PINK Color(255,0,255,255)
+
+#define PLAYER1_COLOR Color(64,160,255,255)
+#define PLAYER2_COLOR Color(255,160,32,255)
+#define PLAYER3_COLOR Color(0,255,0,255)
+
+#define PLAYER_DEFAULT_COLOR Color(255,255,255,255)
+
+// per-player colors (can be expanded as needed)
+#define PLAYER_COLOR(i) \
+    ((i) == 1 ? PLAYER1_COLOR : \
+     (i) == 2 ? PLAYER2_COLOR : \
+     (i) == 3 ? PLAYER3_COLOR : \
+                 PLAYER_DEFAULT_COLOR)
+
+// helper to obtain a Color for a player index; returns PLAYER_DEFAULT_COLOR when
+// the index doesn't match a predefined slot. Use throughout the UI instead of
+// hardcoding portal color sets.
+Color GetPlayerColor( int iPlayer );
+// converts the player colour into a normalized vectorspace for glow effects
+Vector GetPlayerGlowColor( int iPlayer );
 
 PortalColorSet_t ConvertLinkageIDToColorSet( int iPortalLinkageID );
 PortalColorSet_t GetColorSetForPlayer( int iPlayer );

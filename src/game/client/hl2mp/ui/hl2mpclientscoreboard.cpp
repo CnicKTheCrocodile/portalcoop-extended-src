@@ -13,6 +13,7 @@
 #ifdef PORTAL
 #include "c_portal_player.h"
 #include "portal_gamerules.h"
+#include "portal_shareddefs.h"
 #else
 #include "c_hl2mp_player.h"
 #include "hl2mp_gamerules.h"
@@ -663,8 +664,8 @@ void CHL2MPClientScoreBoardDialog::UpdatePlayerInfo()
 			// set the row color based on the players team
 			m_pPlayerList->SetItemFgColor( itemID, g_PR->GetTeamColor( g_PR->GetTeam( i ) ) );
 #else
-			Color fgColor;
-			UTIL_Portal_ColorSet_Color( GetColorSetForPlayer( i ), fgColor );
+			// use our per‑index colour helper instead of the old portal sets
+			Color fgColor = GetPlayerColor( i );
 			m_pPlayerList->SetItemFgColor( itemID, fgColor );
 #endif
 			playerData->deleteThis();

@@ -16,6 +16,7 @@
 #include <vgui/ISurface.h>
 #include "fmtstr.h"
 #include "portal_gamerules.h"
+#include "portal_shareddefs.h"
 #include "view.h"
 #include "ivieweffects.h"
 #include "viewrender.h"
@@ -612,7 +613,7 @@ void CTFAnnotationsPanelCallout::PerformLayout( void )
 	Color color = Color( 255, 255, 255, 255 );
 
 	if ( m_hOwner.Get() )
-		UTIL_Portal_ColorSet_Color( GetColorSetForPlayer( m_hOwner.Get()->entindex() ), color );
+		color = GetPlayerColor( m_hOwner.Get()->entindex() );
 
 	if (m_pArrow)
 		m_pArrow->SetDrawColor(color);
