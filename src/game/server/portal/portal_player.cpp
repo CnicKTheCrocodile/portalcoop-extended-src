@@ -267,6 +267,7 @@ const char *g_ppszPortalMPModels[] =
 	"models/player/Chell.mdl",
 	"models/player/Mel.mdl",
 	"models/player/Abby.mdl",
+	"models/player/Victoria.mdl",
 };
 
 // specific to the local player
@@ -700,6 +701,7 @@ ConVar sv_portal_coop_allow_ping("sv_portal_coop_allow_ping", "1", FCVAR_REPLICA
 #define COOP_PING_PARTICLE_NAME_BLUE "command_target_ping_blue"
 #define COOP_PING_PARTICLE_NAME_ORANGE "command_target_ping_orange"
 #define COOP_PING_PARTICLE_NAME_GREEN "command_target_ping_green"
+#define COOP_PING_PARTICLE_NAME_WHITE "command_target_ping_white"
 
 extern float IntervalDistance(float x, float x0, float x1);
 
@@ -799,7 +801,8 @@ void CPortal_Player::Precache(void)
 	PrecacheParticleSystem( COOP_PING_PARTICLE_DEFAULT );
 	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_ORANGE );
 	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_BLUE );
-	PrecacheParticleSystem( COOP_PING_PARTICLE_NAME_GREEN );
+	PrecacheParticleSystem(COOP_PING_PARTICLE_NAME_GREEN);
+	PrecacheParticleSystem(COOP_PING_PARTICLE_NAME_WHITE);
 	//PrecacheParticleSystem( "command_target_ping_just_arrows" );
 	PrecacheScriptSound( COOP_PING_SOUNDSCRIPT_NAME );
 	PrecacheScriptSound( COOP_PING_HUD_SOUNDSCRIPT_NAME );
@@ -1043,6 +1046,10 @@ void CPortal_Player::SetPlayerModel(void)
 	else if ( iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK )
 	{
 		szModelName = "models/player/abby.mdl";
+	}
+	else if ( iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK )
+	{
+		szModelName = "models/player/victoria.mdl";
 	}
 	else
 	{
@@ -1362,7 +1369,9 @@ void CPortal_Player::PlayCoopPingEffect( void )
 			else if (iPortalColorSet == PORTAL_COLOR_SET_YELLOW_RED)
 				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_ORANGE, tr.endpos, angNormal, this );
 			else if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
-				DispatchParticleEffect( COOP_PING_PARTICLE_NAME_GREEN, tr.endpos, angNormal, this );
+				DispatchParticleEffect(COOP_PING_PARTICLE_NAME_GREEN, tr.endpos, angNormal, this);
+			else if (iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK)
+				DispatchParticleEffect(COOP_PING_PARTICLE_NAME_WHITE, tr.endpos, angNormal, this);
 			else
 				DispatchParticleEffect( COOP_PING_PARTICLE_DEFAULT, tr.endpos, angNormal, this );
 

@@ -116,7 +116,11 @@ void C_PortalBlast::Init( bool bIsPortal2, PortalPlacedByType ePlacedBy, const V
 		}
 		else if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
 		{
-			ParticleProp()->Create( ( ( bIsPortal2 ) ? ( "portal_pink_projectile_stream" ) : ( "portal_green_projectile_stream" ) ), PATTACH_ABSORIGIN_FOLLOW );		
+			ParticleProp()->Create(((bIsPortal2) ? ("portal_pink_projectile_stream") : ("portal_green_projectile_stream")), PATTACH_ABSORIGIN_FOLLOW);
+		}
+		else if (iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK)
+		{
+			ParticleProp()->Create(((bIsPortal2) ? ("portal_black_projectile_stream") : ("portal_white_projectile_stream")), PATTACH_ABSORIGIN_FOLLOW);
 		}
 		else
 		{
@@ -135,7 +139,11 @@ void C_PortalBlast::Init( bool bIsPortal2, PortalPlacedByType ePlacedBy, const V
 		}
 		else if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
 		{
-			ParticleProp()->Create( ( ( bIsPortal2 ) ? ( "portal_pink_projectile_stream_pedestal" ) : ( "portal_green_projectile_stream_pedestal" ) ), PATTACH_ABSORIGIN_FOLLOW );		
+			ParticleProp()->Create(((bIsPortal2) ? ("portal_pink_projectile_stream_pedestal") : ("portal_green_projectile_stream_pedestal")), PATTACH_ABSORIGIN_FOLLOW);
+		}
+		else if (iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK)
+		{
+			ParticleProp()->Create(((bIsPortal2) ? ("portal_black_projectile_stream_pedestal") : ("portal_white_projectile_stream_pedestal")), PATTACH_ABSORIGIN_FOLLOW);
 		}
 		else
 		{

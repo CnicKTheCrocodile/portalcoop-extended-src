@@ -62,6 +62,7 @@ Color GetPlayerColor( int iPlayer )
 	case 1: return PLAYER1_COLOR;
 	case 2: return PLAYER2_COLOR;
 	case 3: return PLAYER3_COLOR;
+	case 4: return PLAYER4_COLOR;
 	default: return PLAYER_DEFAULT_COLOR;
 	}
 }
