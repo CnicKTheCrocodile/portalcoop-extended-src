@@ -60,7 +60,7 @@ void CPortalLaserTarget::Spawn()
             Vector vForward, vRight, vUp;
             pLaserCatcher->GetVectors( &vForward, &vRight, &vUp ); // Line 61
 			
-			vExtents = ( ( vUp + vRight ) * 20.0 ) + ( vForward * 15.0 ); // Note: This is the correct logic that runs from lines 62-65, but there is no way to know how it is written
+			vExtents = ( ( vUp + vRight ) * 20.0 ) + ( vForward * 2 ); // Note: This is the correct logic that runs from lines 62-65, but there is no way to know how it is written
 
 			vExtents.x = fabs( vExtents.x );
 			vExtents.y = fabs( vExtents.y );
