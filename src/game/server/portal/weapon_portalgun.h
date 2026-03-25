@@ -58,6 +58,8 @@ public:
 	void	FizzleOwnedPortals();
 	virtual void Precache ( void );
 
+	void	UpdateViewModelSkin( void );
+
 	virtual void CreateSounds( void );
 	virtual void StopLoopingSounds( void );
 

@@ -178,7 +178,8 @@ public:
 
 	CProp_Portal *GetAssociatedPortal(bool bPortal2);
 
-	void SetLinkageGroupID( int iPortalLinkageGroupID) { iPortalLinkageGroupID = m_iPortalLinkageGroupID; }
+	void SetLinkageGroupID( int iPortalLinkageGroupID) { m_iPortalLinkageGroupID = iPortalLinkageGroupID; }
+	void UpdateViewModelSkin( void );
 	
 	float TraceFirePortal( bool bPortal2, const Vector &vTraceStart, const Vector &vDirection, trace_t &tr, Vector &vFinalPosition, QAngle &qFinalAngles, int iPlacedBy, C_InfoPlacementHelper **pPlacementHelper, bool bTest = false );
 	float FirePortal( bool bPortal2, Vector *pVector = 0, bool bTest = false );

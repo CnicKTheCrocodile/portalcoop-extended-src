@@ -27,6 +27,7 @@ struct FlatBasicPortalRenderingMaterials_t
 	CMaterialReference	m_PortalStaticOverlay_li1[2];
 	CMaterialReference	m_PortalStaticOverlay_li2[2];
 	CMaterialReference	m_PortalStaticOverlay_li3[2];
+	CMaterialReference	m_PortalStaticOverlay_li4[2];
 	CMaterialReference	m_Portal_Stencil_Hole;
 	CMaterialReference	m_Portal_Refract[2];
 	//CTextureReference	m_PortalLightTransfer_ShadowTexture; //light transfers disabled indefinitely

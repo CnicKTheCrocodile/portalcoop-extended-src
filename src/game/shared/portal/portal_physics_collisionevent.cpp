@@ -28,6 +28,22 @@ int CPortal_CollisionEvent::ShouldCollide( IPhysicsObject *pObj0, IPhysicsObject
 	if ( !pGameData0 || !pGameData1 )
 		return 1;
 
+	// don't let players collide with the internal collision proxy; the player
+	// should interact only with the real world geometry.  This mirrors the
+	// behavior we implement in CPSCollisionEntity::ShouldCollide() and avoids
+	// crashes when the player is crushed by other brushes while touching the
+	// proxy.
+	if ( CPSCollisionEntity::IsPortalSimulatorCollisionEntity( (CBaseEntity *)pGameData0 ) &&
+		 ( (CBaseEntity *)pGameData1 )->IsPlayer() )
+	{
+		return 0;
+	}
+	if ( CPSCollisionEntity::IsPortalSimulatorCollisionEntity( (CBaseEntity *)pGameData1 ) &&
+		 ( (CBaseEntity *)pGameData0 )->IsPlayer() )
+	{
+		return 0;
+	}
+
 #if (DEBUG_COLLISION_RULES == 1)
 	bool bBreak = false;
 	if( ((((CBaseEntity *)pGameData0)->entindex() == sv_watchcollision_1.GetInt()) || (((CBaseEntity *)pGameData0)->entindex() == sv_watchcollision_2.GetInt())) &&
