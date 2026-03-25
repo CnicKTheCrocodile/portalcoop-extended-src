@@ -421,25 +421,23 @@ bool C_ProjectedWallEntity::ShouldSpawnParticles( C_Prop_Portal *pPortal )
 
 void C_ProjectedWallEntity::SetupWallParticles()
 {
-	// In Portal: Retract and Portal: Cooperative, no particles spawn
-	return;
-	StopParticleEffects( this );
+	StopParticleEffects(this);
 
-	C_Prop_Portal *pSourcePortal = m_hSourcePortal;
-	C_Prop_Portal *pHitPortal = m_hHitPortal;
+	C_Prop_Portal* pSourcePortal = m_hSourcePortal;
+	C_Prop_Portal* pHitPortal = m_hHitPortal;
 
 	Vector vWallEndPoint = GetEndPoint();
 	Vector vWallStartPoint = GetStartPoint();
 
 	Vector vecForward, vecRight, vecUp;
 	QAngle qAngles = GetNetworkAngles();
-	AngleVectors( qAngles, &vecForward, &vecRight, &vecUp );
+	AngleVectors(qAngles, &vecForward, &vecRight, &vecUp);
 
-	if ( pSourcePortal && ShouldSpawnParticles( pSourcePortal ) )
+	if (pSourcePortal && ShouldSpawnParticles(pSourcePortal))
 	{
 		Vector vecPortalPos;
-		C_Prop_Portal *pPropPortal = dynamic_cast<C_Prop_Portal*>( pSourcePortal );
-		if ( pPropPortal )
+		C_Prop_Portal* pPropPortal = dynamic_cast<C_Prop_Portal*>(pSourcePortal);
+		if (pPropPortal)
 		{
 			vecPortalPos = pPropPortal->GetAbsOrigin();
 		}
@@ -450,14 +448,14 @@ void C_ProjectedWallEntity::SetupWallParticles()
 		}
 
 		Vector particleOrg = (vecForward * 3.125) + vWallStartPoint;
-		DispatchParticleEffect( "projected_wall_impact", particleOrg, vecPortalPos, qAngles, this );
+		DispatchParticleEffect("projected_wall_impact", particleOrg, vecPortalPos, qAngles, this);
 	}
-	
-	if ( !pHitPortal || ShouldSpawnParticles( pHitPortal ) )
+
+	if (!pHitPortal || ShouldSpawnParticles(pHitPortal))
 	{
 		Vector vecPortalPos;
-		C_Prop_Portal *pPropPortal = dynamic_cast<C_Prop_Portal*>( pHitPortal );
-		if ( pPropPortal )
+		C_Prop_Portal* pPropPortal = dynamic_cast<C_Prop_Portal*>(pHitPortal);
+		if (pPropPortal)
 		{
 			vecPortalPos = pPropPortal->GetAbsOrigin();
 		}
@@ -468,7 +466,7 @@ void C_ProjectedWallEntity::SetupWallParticles()
 		}
 
 		Vector particleOrg = vWallEndPoint - (vecForward * 3.125);
-		DispatchParticleEffect( "projected_wall_impact", particleOrg, vecPortalPos, qAngles, this );
+		DispatchParticleEffect("projected_wall_impact", particleOrg, vecPortalPos, qAngles, this);
 	}
 }
 

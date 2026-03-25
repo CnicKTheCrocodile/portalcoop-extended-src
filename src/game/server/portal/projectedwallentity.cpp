@@ -88,7 +88,7 @@ void CProjectedWallEntity::Spawn( void )
 
 void CProjectedWallEntity::Precache( void )
 {
-	//PrecacheParticleSystem("projected_wall_impact");
+	PrecacheParticleSystem("projected_wall_impact");
 }
 
 void CProjectedWallEntity::OnRestore( void )

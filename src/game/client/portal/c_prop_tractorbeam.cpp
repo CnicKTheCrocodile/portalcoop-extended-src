@@ -1,19 +1,19 @@
 #include "cbase.h"
 #include "c_baseprojector.h"
 
-const Vector g_vTractorBeamColorForward = Vector(32.0, 150.0, 255.0);
+const Vector g_vTractorBeamColorForward = Vector(32.0, 70.0, 255.0);
 const Vector g_vTractorBeamColorReverse = Vector(255.0, 60.0, 10.0);
 
 class ClientProjectedEntityAmbientSoundProxy : public C_BaseEntity
 {
-	DECLARE_CLASS( ClientProjectedEntityAmbientSoundProxy, C_BaseEntity );
+	DECLARE_CLASS(ClientProjectedEntityAmbientSoundProxy, C_BaseEntity);
 	DECLARE_CLIENTCLASS();
 public:
 
 	ClientProjectedEntityAmbientSoundProxy();
 	~ClientProjectedEntityAmbientSoundProxy();
 
-	virtual bool	GetSoundSpatialization( SpatializationInfo_t& info );
+	virtual bool	GetSoundSpatialization(SpatializationInfo_t& info);
 };
 
 ClientProjectedEntityAmbientSoundProxy::ClientProjectedEntityAmbientSoundProxy()
@@ -27,13 +27,13 @@ ClientProjectedEntityAmbientSoundProxy::~ClientProjectedEntityAmbientSoundProxy(
 }
 
 //NOTE: This is inaccurate!
-bool ClientProjectedEntityAmbientSoundProxy::GetSoundSpatialization( SpatializationInfo_t& info )
+bool ClientProjectedEntityAmbientSoundProxy::GetSoundSpatialization(SpatializationInfo_t& info)
 {
-	Assert( GetMoveParent() );
-	return GetMoveParent()->GetSoundSpatialization( info );
+	Assert(GetMoveParent());
+	return GetMoveParent()->GetSoundSpatialization(info);
 }
 
-IMPLEMENT_CLIENTCLASS_DT( ClientProjectedEntityAmbientSoundProxy, DT_ProjectedEntityAmbientSoundProxy, ProjectedEntityAmbientSoundProxy )
+IMPLEMENT_CLIENTCLASS_DT(ClientProjectedEntityAmbientSoundProxy, DT_ProjectedEntityAmbientSoundProxy, ProjectedEntityAmbientSoundProxy)
 END_RECV_TABLE()
 
 #define NUM_EMITTER_PARTICLES 3
@@ -41,65 +41,61 @@ END_RECV_TABLE()
 class C_PropTractorBeamProjector : public C_BaseProjector
 {
 public:
-	
-	DECLARE_CLASS( C_PropTractorBeamProjector, C_BaseProjector );
+
+	DECLARE_CLASS(C_PropTractorBeamProjector, C_BaseProjector);
 	DECLARE_CLIENTCLASS();
 	DECLARE_PREDICTABLE();
 
 	C_PropTractorBeamProjector::C_PropTractorBeamProjector();
 	C_PropTractorBeamProjector::~C_PropTractorBeamProjector();
-	
+
 	virtual void Spawn();
 	virtual void ClientThink();
 	virtual void UpdateOnRemove();
 	virtual void OnToolStartRecording();
-	
-	static void RecvProxy_LinearForce( const CRecvProxyData *pData, void *pStruct, void *pOut );
-	static void RecvProxy_Enabled( const CRecvProxyData *pData, void *pStruct, void *pOut );
-	
-    float CalculateRotationPose();
-    float CalculateArmaturePose();
-	
+
+	static void RecvProxy_LinearForce(const CRecvProxyData* pData, void* pStruct, void* pOut);
+	static void RecvProxy_Enabled(const CRecvProxyData* pData, void* pStruct, void* pOut);
+
+	float CalculateRotationPose();
+	float CalculateArmaturePose();
+
 protected:
-	
-    void CreateEffect();
-    void UpdateEffect();
-    void StopEffect();
-	
-    float m_flLinearForce;
-	
-    bool m_bEffectsActive;
-    bool m_bActivated;
-    bool m_bNoEmitterParticles;
-	
-    float m_flArmatureStart;
-    float m_flArmatureTarget;
-    float m_flArmatureDuration;
-    float m_flArmatureStartTime;
-    float m_flRotationStart;
-    float m_flRotationTarget;
-    float m_flRotationDuration;
-    float m_flRotationStartTime;
-	
-    Vector m_vEndPos;
-	
+
+	float m_flLinearForce;
+
+	bool m_bEffectsActive;
+	bool m_bActivated;
+	bool m_bNoEmitterParticles;
+
+	float m_flArmatureStart;
+	float m_flArmatureTarget;
+	float m_flArmatureDuration;
+	float m_flArmatureStartTime;
+	float m_flRotationStart;
+	float m_flRotationTarget;
+	float m_flRotationDuration;
+	float m_flRotationStartTime;
+
+	Vector m_vEndPos;
+
 	CUtlReference<CNewParticleEffect> m_hEmitterEffect[NUM_EMITTER_PARTICLES];
-	
+
 };
 
-IMPLEMENT_CLIENTCLASS_DT( C_PropTractorBeamProjector, DT_PropTractorBeamProjector, CPropTractorBeamProjector )
+IMPLEMENT_CLIENTCLASS_DT(C_PropTractorBeamProjector, DT_PropTractorBeamProjector, CPropTractorBeamProjector)
 
-	RecvPropFloat( RECVINFO( m_flLinearForce ), 0, &C_PropTractorBeamProjector::RecvProxy_LinearForce ),
-	RecvPropVector( RECVINFO( m_vEndPos ) ),
-	RecvPropInt( RECVINFO( m_bEnabled ), 0, &C_PropTractorBeamProjector::RecvProxy_Enabled ),
-	RecvPropBool( RECVINFO( m_bNoEmitterParticles ) ),
+RecvPropFloat(RECVINFO(m_flLinearForce), 0, &C_PropTractorBeamProjector::RecvProxy_LinearForce),
+RecvPropVector(RECVINFO(m_vEndPos)),
+RecvPropInt(RECVINFO(m_bEnabled), 0, &C_PropTractorBeamProjector::RecvProxy_Enabled),
+RecvPropBool(RECVINFO(m_bNoEmitterParticles)),
 
 END_RECV_TABLE()
 
-BEGIN_PREDICTION_DATA( C_PropTractorBeamProjector )
+BEGIN_PREDICTION_DATA(C_PropTractorBeamProjector)
 END_PREDICTION_DATA()
 
-C_PropTractorBeamProjector::C_PropTractorBeamProjector( void )
+C_PropTractorBeamProjector::C_PropTractorBeamProjector(void)
 {
 	m_hFirstChild = NULL;
 	m_hEmitterEffect[0] = NULL;
@@ -107,40 +103,38 @@ C_PropTractorBeamProjector::C_PropTractorBeamProjector( void )
 	m_hEmitterEffect[2] = NULL;
 }
 
-C_PropTractorBeamProjector::~C_PropTractorBeamProjector( void )
+C_PropTractorBeamProjector::~C_PropTractorBeamProjector(void)
 {
 
 }
 
-void C_PropTractorBeamProjector::Spawn( void )
+void C_PropTractorBeamProjector::Spawn(void)
 {
 	BaseClass::Spawn();
-	SetNextClientThink( CLIENT_THINK_ALWAYS );
+	SetNextClientThink(CLIENT_THINK_ALWAYS);
 	m_bEffectsActive = false;
 	m_bActivated = false;
 	m_bNoEmitterParticles = true;
 }
 
-void C_PropTractorBeamProjector::UpdateOnRemove( void )
+void C_PropTractorBeamProjector::UpdateOnRemove(void)
 {
-	StopEffect();
 	BaseClass::UpdateOnRemove();
 }
 
-void C_PropTractorBeamProjector::ClientThink( void )
+void C_PropTractorBeamProjector::ClientThink(void)
 {
-	if ( m_bEnabled && !m_bEffectsActive && m_flLinearForce != 0.0 && gpGlobals->curtime > 0.5)
+	if (m_bEnabled && !m_bEffectsActive && m_flLinearForce != 0.0 && gpGlobals->curtime > 0.5)
 	{
-		CreateEffect();
 		m_bActivated = true;
 	}
-	
-	SetPoseParameter( GetModelPtr(), LookupPoseParameter( GetModelPtr(), "reversal" ), CalculateArmaturePose() );
+
+	SetPoseParameter(GetModelPtr(), LookupPoseParameter(GetModelPtr(), "reversal"), CalculateArmaturePose());
 	m_flPlaybackRate = CalculateRotationPose();
 	StudioFrameAdvance();
 }
 
-float C_PropTractorBeamProjector::CalculateArmaturePose( void )
+float C_PropTractorBeamProjector::CalculateArmaturePose(void)
 {
 
 	if (gpGlobals->curtime > (m_flArmatureStartTime + m_flArmatureDuration))
@@ -173,7 +167,7 @@ float C_PropTractorBeamProjector::CalculateArmaturePose( void )
 }
 
 float C_PropTractorBeamProjector::CalculateRotationPose(void)
-{		
+{
 	if (gpGlobals->curtime > (m_flRotationStartTime + m_flRotationDuration))
 		return m_flRotationTarget;
 
@@ -191,15 +185,15 @@ float C_PropTractorBeamProjector::CalculateRotationPose(void)
 		flRotationGoal = ((((((gpGlobals->curtime - m_flRotationStartTime)
 			/ (v5 - m_flRotationStartTime))
 			* ((gpGlobals->curtime - m_flRotationStartTime)
-			/ (v5 - m_flRotationStartTime)))
+				/ (v5 - m_flRotationStartTime)))
 			* 3.0)
 			- (((((gpGlobals->curtime - m_flRotationStartTime)
-			/ (v5 - m_flRotationStartTime))
-			* ((gpGlobals->curtime - m_flRotationStartTime)
-			/ (v5 - m_flRotationStartTime)))
-			* 2.0)
-			* ((gpGlobals->curtime - m_flRotationStartTime)
-			/ (v5 - m_flRotationStartTime))))
+				/ (v5 - m_flRotationStartTime))
+				* ((gpGlobals->curtime - m_flRotationStartTime)
+					/ (v5 - m_flRotationStartTime)))
+				* 2.0)
+				* ((gpGlobals->curtime - m_flRotationStartTime)
+					/ (v5 - m_flRotationStartTime))))
 			* (m_flRotationTarget - m_flRotationStart))
 			+ m_flRotationStart;
 	}
@@ -215,100 +209,18 @@ float C_PropTractorBeamProjector::CalculateRotationPose(void)
 		if (!v8)
 			return (m_flLinearForce / 120);
 	}
-	
+
 	return flRotationGoal;
 }
 
-void C_PropTractorBeamProjector::CreateEffect( void )
+void C_PropTractorBeamProjector::OnToolStartRecording(void)
 {
-	StopEffect();
-	if (!m_bNoEmitterParticles)
-	{
-		char *pAttachmentNames[3];
-		pAttachmentNames[0] = "emitter1";
-		pAttachmentNames[1] = "emitter2";
-		pAttachmentNames[2] = "emitter3";
 
-		for (int i = 0; i < NUM_EMITTER_PARTICLES; ++i)
-		{
-			if (m_hEmitterEffect[i])
-			{
-				ParticleProp()->StopEmission( m_hEmitterEffect[i] );
-				m_hEmitterEffect[i] = NULL;
-			}
-
-			m_hEmitterEffect[i] = ParticleProp()->Create( "tractor_beam_arm", PATTACH_POINT_FOLLOW, pAttachmentNames[i] );
-			
-			if (m_hEmitterEffect[i])
-			{
-				ParticleProp()->AddControlPoint( m_hEmitterEffect[i], 1, this, PATTACH_ABSORIGIN, NULL, vec3_origin );
-				ParticleProp()->AddControlPoint( m_hEmitterEffect[i], 2, this, PATTACH_ABSORIGIN, NULL, vec3_origin );
-				
-				Vector color = g_vTractorBeamColorReverse;
-				if ( m_flLinearForce >= 0.0 )
-					color = g_vTractorBeamColorForward;
-
-				m_hEmitterEffect[i]->SetControlPoint( 1, color );
-				
-				matrix3x4_t matWorldTransform = EntityToWorldTransform();
-
-				Vector vVelocity;
-				vVelocity.x = matWorldTransform.m_flMatVal[0][0] * m_flLinearForce;
-				vVelocity.y = matWorldTransform.m_flMatVal[1][0] * m_flLinearForce;
-				vVelocity.z = matWorldTransform.m_flMatVal[2][0] * m_flLinearForce;
-				m_hEmitterEffect[i]->SetControlPoint( 2, vVelocity );
-			}
-		}
-	}
-	m_bEffectsActive = true;
 }
 
-void C_PropTractorBeamProjector::UpdateEffect( void )
+void C_PropTractorBeamProjector::RecvProxy_Enabled(const CRecvProxyData* pData, void* pStruct, void* pOut)
 {
-	for ( int i = 0; i < NUM_EMITTER_PARTICLES; ++i)
-	{
-		if (m_hEmitterEffect[i])
-		{
-			Vector color;
-			color = g_vTractorBeamColorForward;
-			if ( m_flLinearForce < 0.0 )
-				color = g_vTractorBeamColorReverse;
-
-			m_hEmitterEffect[i]->SetControlPoint( 1, color );
-			
-			matrix3x4_t matWorldSpace = EntityToWorldTransform();
-			
-			Vector vVelocity;
-			vVelocity.x = matWorldSpace.m_flMatVal[0][0] * m_flLinearForce;
-			vVelocity.y = matWorldSpace.m_flMatVal[1][0] * m_flLinearForce;
-			vVelocity.z = matWorldSpace.m_flMatVal[2][0] * m_flLinearForce;
-			m_hEmitterEffect[i]->SetControlPoint( 2, vVelocity );
-		}
-	}
-}
-
-void C_PropTractorBeamProjector::StopEffect( void )
-{
-	for (int i = 0; i < NUM_EMITTER_PARTICLES; ++i)
-	{
-		if (m_hEmitterEffect[i])
-		{
-			ParticleProp()->StopEmission(m_hEmitterEffect[i]);
-		}
-	}
-
-	m_bEffectsActive = false;
-}
-
-void C_PropTractorBeamProjector::OnToolStartRecording( void )
-{
-	if (m_bEffectsActive)
-		CreateEffect();
-}
-
-void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData, void *pStruct, void *pOut )
-{
-	C_PropTractorBeamProjector *pTractorBeam = static_cast<C_PropTractorBeamProjector*>( pStruct );
+	C_PropTractorBeamProjector* pTractorBeam = static_cast<C_PropTractorBeamProjector*>(pStruct);
 
 	bool bEnabled = pData->m_Value.m_Int == 1;
 	if (pTractorBeam->m_bEnabled != bEnabled)
@@ -325,11 +237,10 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 			pTractorBeam->m_flArmatureDuration = 0.75;
 			pTractorBeam->m_flArmatureTarget = pTractorBeam->m_flLinearForce <= 0.0 ? 0 : 1.0;
 			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
-			if ( !bEffectsActive )
+			if (!bEffectsActive)
 			{
 				if (!pTractorBeam->m_bActivated)
 					return;
-				pTractorBeam->CreateEffect();
 			}
 		}
 		else
@@ -343,7 +254,6 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 			pTractorBeam->m_flArmatureStart = flPose;
 			pTractorBeam->m_flArmatureDuration = 1.5;
 			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
-			pTractorBeam->StopEffect();
 		}
 	}
 	if (!pTractorBeam->m_bActivated && !pTractorBeam->m_bEnabled)
@@ -360,15 +270,15 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 	}
 }
 
-void C_PropTractorBeamProjector::RecvProxy_LinearForce( const CRecvProxyData *pData, void *pStruct, void *pOut )
-{	
-	C_PropTractorBeamProjector *pTractorBeam = static_cast<C_PropTractorBeamProjector*>( pStruct );
+void C_PropTractorBeamProjector::RecvProxy_LinearForce(const CRecvProxyData* pData, void* pStruct, void* pOut)
+{
+	C_PropTractorBeamProjector* pTractorBeam = static_cast<C_PropTractorBeamProjector*>(pStruct);
 
 	float flNewLinearForce = pData->m_Value.m_Float;
 	if (pTractorBeam->m_flLinearForce != flNewLinearForce)
 	{
 		pTractorBeam->m_flLinearForce = flNewLinearForce;
-		if ( pTractorBeam->m_bEnabled )
+		if (pTractorBeam->m_bEnabled)
 		{
 			pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
 			pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
@@ -378,7 +288,6 @@ void C_PropTractorBeamProjector::RecvProxy_LinearForce( const CRecvProxyData *pD
 			pTractorBeam->m_flArmatureTarget = flNewLinearForce > 0.0 ? 1.0 : 0.0;
 			pTractorBeam->m_flArmatureDuration = 0.75;
 			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
-			pTractorBeam->UpdateEffect();
 		}
 	}
 }
