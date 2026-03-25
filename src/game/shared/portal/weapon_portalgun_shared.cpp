@@ -425,6 +425,8 @@ bool CWeaponPortalgun::Deploy( void )
 		m_hPrimaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, false, true );
 		m_hSecondaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, true, true );
 #endif
+	
+		UpdateViewModelSkin();
 	}
 
 	return bReturn;
@@ -1299,6 +1301,9 @@ void CWeaponPortalgun::Think( void )
 		m_fCanPlacePortal1OnThisSurface = ( ( m_bCanFirePortal1 ) ? ( FirePortal( false, 0, 1 ) ) : ( 0.0f ) );
 		m_fCanPlacePortal2OnThisSurface = ( ( m_bCanFirePortal2 ) ? ( FirePortal( true, 0, 2 ) ) : ( 0.0f ) );
 	}
+
+	UpdateViewModelSkin();
+	return;
 #else
 	// Draw obtained portal color chips
 	int iSlot1State = ( ( m_bCanFirePortal1 ) ? ( 0 ) : ( 1 ) ); // FIXME: Portal gun might have only red but not blue;
@@ -1311,7 +1316,27 @@ void CWeaponPortalgun::Think( void )
 	{
 		pPlayer->GetViewModel()->SetBodygroup( 1, iSlot1State );
 		pPlayer->GetViewModel()->SetBodygroup( 2, iSlot2State );
+
+		int iHandBody = 0;
+		const char *pszPlayerModel = STRING( pPlayer->GetModelName() );
+
+		if ( pszPlayerModel && pszPlayerModel[0] )
+		{
+			if ( Q_stristr( pszPlayerModel, "mel" ) )
+				iHandBody = 1;
+			else if ( Q_stristr( pszPlayerModel, "chell" ) )
+				iHandBody = 2;
+			else if ( Q_stristr( pszPlayerModel, "abby" ) )
+				iHandBody = 3;
+			else if ( Q_stristr( pszPlayerModel, "victoria" ) )
+				iHandBody = 4;
+			else
+				iHandBody = 0;
+		};
+
+		pPlayer->GetViewModel()->SetBodygroup( 3, iHandBody );
 	}
+
 
 	// HACK HACK! Used to make the gun visually change when going through a cleanser!
 	if ( m_fEffectsMaxSize1 > 4.0f )
@@ -1328,6 +1353,54 @@ void CWeaponPortalgun::Think( void )
 			m_fEffectsMaxSize2 = 4.0f;
 	}
 #endif
+
+	UpdateViewModelSkin();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Update skin from linkage group (0 default, 1-4 mapped)
+//-----------------------------------------------------------------------------
+void CWeaponPortalgun::UpdateViewModelSkin( void )
+{
+	int iSkin = 0;
+	PortalColorSet_t iPortalColorSet = ConvertLinkageIDToColorSet( m_iPortalLinkageGroupID );
+
+	if ( iPortalColorSet == PORTAL_COLOR_SET_LIGHTBLUE_PURPLE )
+	{
+		iSkin = 1;
+	}
+	else if ( iPortalColorSet == PORTAL_COLOR_SET_YELLOW_RED )
+	{
+		iSkin = 2;
+	}
+	else if ( iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK )
+	{
+		iSkin = 3;
+	}
+	else if ( iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK )
+	{
+		iSkin = 4;
+	}
+	else
+	{
+		iSkin = 0;
+	}
+
+	// World model skin
+	m_nSkin = iSkin;
+
+	// View model skin (client only)
+	#ifdef CLIENT_DLL
+	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
+	if ( pPlayer )
+	{
+		CBaseViewModel *pViewModel = pPlayer->GetViewModel();
+		if ( pViewModel )
+		{
+			pViewModel->m_nSkin = iSkin;
+		}
+	}
+	#endif
 }
 
 float CWeaponPortalgun::GetPortal1Placablity(void)

@@ -870,6 +870,11 @@ void C_WeaponPortalgun::OnDataChanged( DataUpdateType_t updateType )
 		m_bOldCanFirePortal1 = m_bCanFirePortal1;
 		m_bOldCanFirePortal2 = m_bCanFirePortal2;
 
+		if ( m_iOldPortalLinkageGroupID != m_iPortalLinkageGroupID )
+		{
+			UpdateViewModelSkin();
+		}
+
 		StartEffects();
 		m_iOldPortalLinkageGroupID = m_iPortalLinkageGroupID;
 	}
