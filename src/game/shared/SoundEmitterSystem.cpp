@@ -631,6 +631,11 @@ public:
 			return;
 		}
 
+		if ( !token || !token[0] )
+		{
+			return;
+		}
+
 		// A negative duration means fill it in from the wav file if possible
 		if ( duration < 0.0f )
 		{
@@ -787,7 +792,13 @@ public:
 				ent = ent->GetOwnerEntity();
 			}
 		}
-		EmitCloseCaption( filter, entindex, fromplayer, ep.m_pSoundName, ep.m_UtlVecSoundOrigin, duration, ep.m_bWarnOnMissingCloseCaption );
+		const char *captionToken = ep.m_pSoundName;
+		if ( !captionToken || !captionToken[0] )
+		{
+			captionToken = params.soundname;
+		}
+
+		EmitCloseCaption( filter, entindex, fromplayer, captionToken, ep.m_UtlVecSoundOrigin, duration, ep.m_bWarnOnMissingCloseCaption );
 	}
 
 	void EmitAmbientSound( int entindex, const Vector& origin, const char *soundname, float flVolume, int iFlags, int iPitch, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
