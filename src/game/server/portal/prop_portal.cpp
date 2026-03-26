@@ -1333,20 +1333,7 @@ void CProp_Portal::WakeNearbyEntities( void )
 							if ( UTIL_IsBoxIntersectingPortal( vBoxCenter, vBoxExtents, this ) )
 							{
 								// It's intersecting this portal
-								if ( m_bIsPortal2 )
-									pPortalDetector->m_OnStartTouchPortal2.FireOutput( this, pPortalDetector );
-								else
-									pPortalDetector->m_OnStartTouchPortal1.FireOutput( this, pPortalDetector );
-
-								if ( IsActivedAndLinked() )
-								{
-									pPortalDetector->m_OnStartTouchLinkedPortal.FireOutput( this, pPortalDetector );
-
-									if ( UTIL_IsBoxIntersectingPortal( vBoxCenter, vBoxExtents, m_hLinkedPortal ) )
-									{
-										pPortalDetector->m_OnStartTouchBothLinkedPortals.FireOutput( this, pPortalDetector );
-									}
-								}
+								// Detection events are handled in CFuncPortalDetector::Think(); no direct output here.
 							}
 						}
 					}
@@ -1364,20 +1351,8 @@ void CProp_Portal::WakeNearbyEntities( void )
 							if (UTIL_IsBoxIntersectingPortal(vBoxCenter, vBoxExtents, this))
 							{
 								// It's intersecting this portal
-								if (m_bIsPortal2)
-									pPortalDetector->m_OnStartTouchPortal2.FireOutput(this, pPortalDetector);
-								else
-									pPortalDetector->m_OnStartTouchPortal1.FireOutput(this, pPortalDetector);
-
-								if (IsActivedAndLinked())
-								{
-									pPortalDetector->m_OnStartTouchLinkedPortal.FireOutput(this, pPortalDetector);
-
-									if (UTIL_IsBoxIntersectingPortal(vBoxCenter, vBoxExtents, m_hLinkedPortal))
-									{
-										pPortalDetector->m_OnStartTouchBothLinkedPortals.FireOutput(this, pPortalDetector);
-									}
-								}
+								// Detector handles OnStart/OnEnd state transitions in Think().
+								// Portal-side outputs are suppressed to avoid repeated firing.
 							}
 						}
 					}
