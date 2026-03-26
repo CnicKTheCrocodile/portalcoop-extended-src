@@ -187,6 +187,8 @@ void C_PortalLaser::ClientThink( void )
 	traceFilter.AddClassnameToIgnore( "projected_wall_entity" );
 	traceFilter.AddClassnameToIgnore( "player" );
 	traceFilter.AddClassnameToIgnore( "point_laser_target" );
+	//traceFilter.AddClassnameToIgnore( "prop_portal" );
+	//traceFilter.AddClassnameToIgnore( "portalsimulator_collisionentity" );
 #if 1
 	C_BaseEntity *pReflector = m_hReflector.Get();
 

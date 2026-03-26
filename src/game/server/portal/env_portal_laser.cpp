@@ -675,6 +675,8 @@ CBaseEntity *CPortalLaser::TraceLaser( bool bIsFirstTrace, Vector &vecStart, Vec
 	traceFilter.AddClassnameToIgnore("projected_wall_entity");
 	traceFilter.AddClassnameToIgnore("player");
 	traceFilter.AddClassnameToIgnore("point_laser_target");
+	//traceFilter.AddClassnameToIgnore("prop_portal");
+	//traceFilter.AddClassnameToIgnore("portalsimulator_collisionentity");
 
 	CUtlVector<CProp_Portal*> portalList;
 	Vector vAutoAimOffset;
