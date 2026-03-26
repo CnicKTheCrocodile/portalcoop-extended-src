@@ -31,6 +31,8 @@
 #define PORTALGUN_PURPLE_LAST_GLOW "sprites/purplelight"
 #define PORTALGUN_GREEN_LAST_GLOW "sprites/greenlight"
 #define PORTALGUN_PINK_LAST_GLOW "sprites/pinklight"
+#define PORTALGUN_WHITE_LAST_GLOW "sprites/whitelight"
+#define PORTALGUN_BLACK_LAST_GLOW "sprites/blacklight"
 #define PORTALGUN_PORTAL1_FIRED_LAST_GLOW "sprites/bluelight"
 #define PORTALGUN_PORTAL2_FIRED_LAST_GLOW "sprites/orangelight"
 #define PORTALGUN_PORTAL_MUZZLE_GLOW_SPRITE "sprites/portalgun_effects"

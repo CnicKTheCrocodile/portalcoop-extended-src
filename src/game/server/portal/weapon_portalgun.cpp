@@ -95,22 +95,28 @@ void CWeaponPortalgun::Spawn( void )
 	SetThink( &CWeaponPortalgun::Think );
 	SetNextThink( gpGlobals->curtime + 0.1 );
 	
-	if (!m_bForceAlwaysUseSetID)
+	if ( !m_bForceAlwaysUseSetID )
 	{
-		if( GameRules()->IsMultiplayer() || !GetOwner()->IsPlayer() )
+		if ( GameRules()->IsMultiplayer() || !GetOwner()->IsPlayer() )
 		{
 			CBaseEntity *pOwner = GetOwner();
-			if( pOwner )
+			if ( pOwner )
 			{
-				m_iPortalLinkageGroupID = pOwner->entindex();
+				// Use keyvalue value if it was explicitly set on the entity.
+				if ( m_iPortalLinkageGroupID == 0 )
+				{
+					m_iPortalLinkageGroupID = pOwner->entindex();
+				}
 			}
 
 			Assert( (m_iPortalLinkageGroupID >= 0) && (m_iPortalLinkageGroupID < 256) );
-		}	
+		}
 	}
 
-	m_hPrimaryPortal = CProp_Portal::FindPortal(m_iPortalLinkageGroupID, false, true);
-	m_hSecondaryPortal = CProp_Portal::FindPortal(m_iPortalLinkageGroupID, true, true);
+	m_hPrimaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, false, true );
+	m_hSecondaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, true, true );
+
+	UpdateViewModelSkin();
 }
 
 void CWeaponPortalgun::Activate()
@@ -126,17 +132,22 @@ void CWeaponPortalgun::Activate()
 		CBaseEntity *pHeldObject = GetPlayerHeldEntity( pPlayer );
 		OpenProngs( ( pHeldObject ) ? ( false ) : ( true ) );
 		OpenProngs( ( pHeldObject ) ? ( true ) : ( false ) );
-		if (!m_bForceAlwaysUseSetID)
+		if ( !m_bForceAlwaysUseSetID )
 		{
-			if( GameRules()->IsMultiplayer() || !GetOwner()->IsPlayer() )
+			if ( GameRules()->IsMultiplayer() || !GetOwner()->IsPlayer() )
 			{
-				m_iPortalLinkageGroupID = GetOwner()->entindex();
+				if ( m_iPortalLinkageGroupID == 0 )
+				{
+					m_iPortalLinkageGroupID = GetOwner()->entindex();
+				}
 			}
 		}
 		
-		m_hPrimaryPortal = CProp_Portal::FindPortal(m_iPortalLinkageGroupID, false, true);
-		m_hSecondaryPortal = CProp_Portal::FindPortal(m_iPortalLinkageGroupID, true, true);
+		m_hPrimaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, false, true );
+		m_hSecondaryPortal = CProp_Portal::FindPortal( m_iPortalLinkageGroupID, true, true );
 		Assert( (m_iPortalLinkageGroupID >= 0) && (m_iPortalLinkageGroupID < 256) );
+
+		UpdateViewModelSkin();
 	}
 
 	// HACK HACK! Used to make the gun visually change when going through a cleanser!

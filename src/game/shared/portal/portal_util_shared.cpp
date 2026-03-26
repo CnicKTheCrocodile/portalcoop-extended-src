@@ -162,6 +162,8 @@ Color UTIL_Portal_Color( int iPortal, PortalColorSet_t iPortalColorSet )
 				return PORTAL_COLOR_YELLOW;
 			if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
 				return PORTAL_COLOR_GREEN;
+			if (iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK)
+				return PORTAL_COLOR_WHITE;
 			if (iPortalColorSet == PORTAL_COLOR_SET_OBSERVER)
 				return COLOR_GREY;
 			
@@ -175,6 +177,8 @@ Color UTIL_Portal_Color( int iPortal, PortalColorSet_t iPortalColorSet )
 				return PORTAL_COLOR_RED;
 			if (iPortalColorSet == PORTAL_COLOR_SET_GREEN_PINK)
 				return PORTAL_COLOR_PINK;
+			if (iPortalColorSet == PORTAL_COLOR_SET_WHITE_BLACK)
+				return PORTAL_COLOR_BLACK;
 			if (iPortalColorSet == PORTAL_COLOR_SET_OBSERVER)
 				return COLOR_GREY;
 
@@ -201,6 +205,11 @@ void UTIL_Portal_ColorSet_Color( PortalColorSet_t iPortalColorSet, Color &color 
 		case PORTAL_COLOR_SET_GREEN_PINK:
 		{
 			color = PORTAL_COLOR_GREEN;
+			break;
+		}
+		case PORTAL_COLOR_SET_WHITE_BLACK:
+		{
+			color = PORTAL_COLOR_WHITE;
 			break;
 		}
 		case PORTAL_COLOR_SET_BLUE_ORANGE:

@@ -34,10 +34,18 @@ public:
 	CNetworkVar(bool, m_bShouldUseLinkageID);
 	int GetLinkageGroupID( void ) { return m_iLinkageGroupID; }
 
+	COutputEvent m_OnStartTouchPortal;
+	void Think( void );
 	COutputEvent m_OnStartTouchPortal1;
 	COutputEvent m_OnStartTouchPortal2;
 	COutputEvent m_OnStartTouchLinkedPortal;
 	COutputEvent m_OnStartTouchBothLinkedPortals;
+
+	COutputEvent m_OnEndTouchPortal;
+	COutputEvent m_OnEndTouchPortal1;
+	COutputEvent m_OnEndTouchPortal2;
+	COutputEvent m_OnEndTouchLinkedPortal;
+	COutputEvent m_OnEndTouchBothLinkedPortals;
 
 	//DECLARE_SERVERCLASS();
 	DECLARE_DATADESC();
@@ -45,7 +53,11 @@ public:
 private:
 	CNetworkVar(bool, m_bActive);			// are we currently detecting portals
 	CNetworkVar(int, m_iLinkageGroupID);			// what set of portals are we testing for?
-	
+
+	bool m_bLastTouchedPortal1;
+	bool m_bLastTouchedPortal2;
+	bool m_bLastTouchedLinkedPortal;
+	bool m_bLastTouchedBothLinked;
 };
 
 #endif

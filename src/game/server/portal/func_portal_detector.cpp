@@ -34,10 +34,17 @@ BEGIN_DATADESC( CFuncPortalDetector )
 	DEFINE_INPUTFUNC( FIELD_VOID, "Enable", InputEnable ),
 	DEFINE_INPUTFUNC( FIELD_VOID, "Toggle", InputToggle ),
 
+	DEFINE_OUTPUT( m_OnStartTouchPortal, "OnStartTouchPortal" ),
 	DEFINE_OUTPUT( m_OnStartTouchPortal1, "OnStartTouchPortal1" ),
 	DEFINE_OUTPUT( m_OnStartTouchPortal2, "OnStartTouchPortal2" ),
 	DEFINE_OUTPUT( m_OnStartTouchLinkedPortal, "OnStartTouchLinkedPortal" ),
 	DEFINE_OUTPUT( m_OnStartTouchBothLinkedPortals, "OnStartTouchBothLinkedPortals" ),
+	DEFINE_OUTPUT( m_OnEndTouchPortal, "OnEndTouchPortal" ),
+	DEFINE_OUTPUT( m_OnEndTouchPortal1, "OnEndTouchPortal1" ),
+	DEFINE_OUTPUT( m_OnEndTouchPortal2, "OnEndTouchPortal2" ),
+	DEFINE_OUTPUT( m_OnEndTouchLinkedPortal, "OnEndTouchLinkedPortal" ),
+	DEFINE_OUTPUT( m_OnEndTouchBothLinkedPortals, "OnEndTouchBothLinkedPortals" ),
+
 
 	DEFINE_FUNCTION( IsActive ),
 
@@ -70,10 +77,35 @@ void CFuncPortalDetector::Spawn()
 	SetRenderMode( kRenderNone );	// Don't draw
 	SetSolid( SOLID_VPHYSICS );		// we may want slanted walls, so we'll use OBB
 	AddSolidFlags( FSOLID_NOT_SOLID );
+
+	m_bLastTouchedPortal1 = false;
+	m_bLastTouchedPortal2 = false;
+	m_bLastTouchedLinkedPortal = false;
+	m_bLastTouchedBothLinked = false;
+
+	SetThink( &CFuncPortalDetector::Think );
+	SetNextThink( gpGlobals->curtime + 0.1f );
 }
 
 void CFuncPortalDetector::OnActivate( void )
 {
+	m_bActive = true;
+	m_bLastTouchedPortal1 = false;
+	m_bLastTouchedPortal2 = false;
+	m_bLastTouchedLinkedPortal = false;
+	m_bLastTouchedBothLinked = false;
+
+	SetNextThink( gpGlobals->curtime );
+}
+
+void CFuncPortalDetector::Think( void )
+{
+	if ( !m_bActive )
+	{
+		SetNextThink( gpGlobals->curtime + 0.1f );
+		return;
+	}
+
 	Vector vMin, vMax;
 	CollisionProp()->WorldSpaceAABB( &vMin, &vMax );
 
@@ -82,76 +114,98 @@ void CFuncPortalDetector::OnActivate( void )
 
 	bool bTouchedPortal1 = false;
 	bool bTouchedPortal2 = false;
+	bool bTouchedLinked = false;
 
 	int iPortalCount = CProp_Portal_Shared::AllPortals.Count();
-	if( iPortalCount != 0 )
+	if ( iPortalCount != 0 )
 	{
 		CProp_Portal **pPortals = CProp_Portal_Shared::AllPortals.Base();
-		for( int i = 0; i != iPortalCount; ++i )
+		for ( int i = 0; i < iPortalCount; ++i )
 		{
 			CProp_Portal *pTempPortal = pPortals[i];
+			if ( !pTempPortal )
+				continue;
 
-			//require that it's active and/or linked?
+			if ( !pTempPortal->IsActive() )
+				continue;
 
-			if (m_bShouldUseLinkageID)
+			if ( m_bShouldUseLinkageID && pTempPortal->GetLinkageGroup() != m_iLinkageGroupID )
+				continue;
+
+			if ( UTIL_IsBoxIntersectingPortal( vBoxCenter, vBoxExtents, pTempPortal ) )
 			{
-				if( pTempPortal->GetLinkageGroup() == m_iLinkageGroupID && UTIL_IsBoxIntersectingPortal( vBoxCenter, vBoxExtents, pTempPortal ) )
+				if ( pTempPortal->IsPortal2() )
 				{
-					if( pTempPortal->IsPortal2() )
-					{
-						m_OnStartTouchPortal2.FireOutput( pTempPortal, this );
-
-						if ( pTempPortal->IsActivedAndLinked() )
-						{
-							bTouchedPortal2 = true;
-							m_OnStartTouchLinkedPortal.FireOutput( pTempPortal, this );
-						}
-					}
-					else
-					{
-						m_OnStartTouchPortal1.FireOutput( pTempPortal, this );
-
-						if ( pTempPortal->IsActivedAndLinked() )
-						{
-							bTouchedPortal1 = true;
-							m_OnStartTouchLinkedPortal.FireOutput( pTempPortal, this );
-						}
-					}
+					bTouchedPortal2 = true;
 				}
-			}
-			else if (!m_bShouldUseLinkageID)
-			{
-				if (UTIL_IsBoxIntersectingPortal(vBoxCenter, vBoxExtents, pTempPortal))
+				else
 				{
-					if (pTempPortal->IsPortal2())
-					{
-						m_OnStartTouchPortal2.FireOutput(pTempPortal, this);
+					bTouchedPortal1 = true;
+				}
 
-						if (pTempPortal->IsActivedAndLinked())
-						{
-							bTouchedPortal2 = true;
-							m_OnStartTouchLinkedPortal.FireOutput(pTempPortal, this);
-						}
-					}
-					else
-					{
-						m_OnStartTouchPortal1.FireOutput(pTempPortal, this);
-
-						if (pTempPortal->IsActivedAndLinked())
-						{
-							bTouchedPortal1 = true;
-							m_OnStartTouchLinkedPortal.FireOutput(pTempPortal, this);
-						}
-					}
+				if ( pTempPortal->IsActivedAndLinked() )
+				{
+					bTouchedLinked = true;
 				}
 			}
 		}
 	}
 
-	if ( bTouchedPortal1 && bTouchedPortal2 )
+	bool bTouchedBoth = ( bTouchedPortal1 && bTouchedPortal2 );
+	bool bTouchedAny = ( bTouchedPortal1 || bTouchedPortal2 );
+	bool bLastTouchedAny = ( m_bLastTouchedPortal1 || m_bLastTouchedPortal2 );
+
+	if ( bTouchedAny && !bLastTouchedAny )
+	{
+		m_OnStartTouchPortal.FireOutput( this, this );
+	}
+	else if ( !bTouchedAny && bLastTouchedAny )
+	{
+		m_OnEndTouchPortal.FireOutput( this, this );
+	}
+
+	if ( bTouchedPortal1 && !m_bLastTouchedPortal1 )
+	{
+		m_OnStartTouchPortal1.FireOutput( this, this );
+	}
+	else if ( !bTouchedPortal1 && m_bLastTouchedPortal1 )
+	{
+		m_OnEndTouchPortal1.FireOutput( this, this );
+	}
+
+	if ( bTouchedPortal2 && !m_bLastTouchedPortal2 )
+	{
+		m_OnStartTouchPortal2.FireOutput( this, this );
+	}
+	else if ( !bTouchedPortal2 && m_bLastTouchedPortal2 )
+	{
+		m_OnEndTouchPortal2.FireOutput( this, this );
+	}
+
+	if ( bTouchedLinked && !m_bLastTouchedLinkedPortal )
+	{
+		m_OnStartTouchLinkedPortal.FireOutput( this, this );
+	}
+	else if ( !bTouchedLinked && m_bLastTouchedLinkedPortal )
+	{
+		m_OnEndTouchLinkedPortal.FireOutput( this, this );
+	}
+
+	if ( bTouchedBoth && !m_bLastTouchedBothLinked )
 	{
 		m_OnStartTouchBothLinkedPortals.FireOutput( this, this );
 	}
+	else if ( !bTouchedBoth && m_bLastTouchedBothLinked )
+	{
+		m_OnEndTouchBothLinkedPortals.FireOutput( this, this );
+	}
+
+	m_bLastTouchedPortal1 = bTouchedPortal1;
+	m_bLastTouchedPortal2 = bTouchedPortal2;
+	m_bLastTouchedLinkedPortal = bTouchedLinked;
+	m_bLastTouchedBothLinked = bTouchedBoth;
+
+	SetNextThink( gpGlobals->curtime + 0.1f );
 }
 
 void CFuncPortalDetector::InputDisable( inputdata_t &inputdata )
