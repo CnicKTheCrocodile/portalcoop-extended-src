@@ -125,7 +125,8 @@ void CPropTractorBeamProjector::Spawn()
 	SetFadeDistance(-1.0, 0.0);
 	AddEffects(EF_NOSHADOW);
 
-	CreateSpriteTrails();
+	if (m_bEnabled)
+		CreateSpriteTrails();
 }
 
 void CPropTractorBeamProjector::CreateSpriteTrails()
@@ -171,7 +172,7 @@ void CPropTractorBeamProjector::CreateSpriteTrails()
 	}
 }
 
-void CPropTractorBeamProjector::UpdateSpriteTrails()
+void CPropTractorBeamProjector::RemoveSpriteTrails()
 {
 	for (int i = 0; i < 3; ++i)
 	{
@@ -187,7 +188,11 @@ void CPropTractorBeamProjector::UpdateSpriteTrails()
 			m_pTrails[i] = NULL;
 		}
 	}
+}
 
+void CPropTractorBeamProjector::UpdateSpriteTrails()
+{
+	RemoveSpriteTrails();
 	CreateSpriteTrails();
 }
 
@@ -280,6 +285,7 @@ void CPropTractorBeamProjector::Project(void)
 
 void CPropTractorBeamProjector::Shutdown(void)
 {
+	RemoveSpriteTrails();
 	BaseClass::Shutdown();
 
 	CSoundEnvelopeController& controller = CSoundEnvelopeController::GetController();

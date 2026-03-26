@@ -33,6 +33,7 @@ public:
 
 	void CreateSpriteTrails();
 	void UpdateSpriteTrails();
+	void RemoveSpriteTrails();
 
 	float GetLinearForce() { return m_flLinearForce; }
 
