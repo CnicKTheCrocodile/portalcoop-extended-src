@@ -2024,13 +2024,19 @@ void CPortalGameRules::GoToIntermission( void )
 #ifdef GAME_DLL
 ConVar pcoop_tags_2player( "pcoop_tags_2player", "0", FCVAR_DEVELOPMENTONLY );
 ConVar pcoop_tags_3player( "pcoop_tags_3player", "0", FCVAR_DEVELOPMENTONLY );
+ConVar pcoop_tags_4player( "pcoop_tags_4player", "0", FCVAR_DEVELOPMENTONLY );
 ConVar pcoop_tags_2player_rexaura( "pcoop_tags_2player_rexaura", "0", FCVAR_DEVELOPMENTONLY );
+ConVar pcoop_tags_3player_rexaura( "pcoop_tags_3player_rexaura", "0", FCVAR_DEVELOPMENTONLY );
+ConVar pcoop_tags_4player_rexaura( "pcoop_tags_4player_rexaura", "0", FCVAR_DEVELOPMENTONLY );
 
 void SetupTagConVars()
 {
 	pcoop_tags_2player.SetValue( "0" );
 	pcoop_tags_3player.SetValue( "0" );
+	pcoop_tags_4player.SetValue( "0" );
 	pcoop_tags_2player_rexaura.SetValue( "0" );
+	pcoop_tags_3player_rexaura.SetValue( "0" );
+	pcoop_tags_4player_rexaura.SetValue( "0" );
 
 	const char *pszMapName = gpGlobals->mapname.ToCStr();
 	if ( Map_Is2Player( pszMapName ) )
@@ -2051,7 +2057,28 @@ void SetupTagConVars()
 	{
 		if ( GetRequiredPlayers() == 3 )
 		{
-			pcoop_tags_3player.SetValue( "1" );
+			if ( Map_IsRexaura( pszMapName ) )
+			{
+				pcoop_tags_3player_rexaura.SetValue( "1" );
+			}
+			else
+			{
+				pcoop_tags_3player.SetValue( "1" );
+			}
+		}
+	}
+	else if ( Map_Is4Player( pszMapName ) )
+	{
+		if ( GetRequiredPlayers() == 4 )
+		{
+			if ( Map_IsRexaura( pszMapName ) )
+			{
+				pcoop_tags_4player_rexaura.SetValue( "1" );
+			}
+			else
+			{
+				pcoop_tags_4player.SetValue( "1" );
+			}
 		}
 	}
 }
@@ -2069,7 +2096,10 @@ convar_tags_t convars_to_check_for_tags[] =
 {
 	{ "pcoop_tags_2player",			"2player" },
 	{ "pcoop_tags_3player",			"3player" },
+	{ "pcoop_tags_4player",			"4player" },
 	{ "pcoop_tags_2player_rexaura",	"2player_rexaura" },
+	{ "pcoop_tags_3player_rexaura",	"3player_rexaura" },
+	{ "pcoop_tags_4player_rexaura",	"4player_rexaura" },
 };
 
 //-----------------------------------------------------------------------------

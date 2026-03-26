@@ -195,6 +195,7 @@ bool PlayerShouldPlay( int index );
 
 bool Map_Is2Player( const char *pMapName );
 bool Map_Is3Player( const char *pMapName );
+bool Map_Is4Player( const char *pMapName );
 
 inline bool Map_IsNormal( const char *pMapName )
 {

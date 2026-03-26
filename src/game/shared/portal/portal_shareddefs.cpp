@@ -149,6 +149,11 @@ bool Map_Is3Player( const char *pMapName )
 	return V_stristr( pMapName, "p3coop_" ) || V_stristr( pMapName, "rex3c_" );
 }
 
+bool Map_Is4Player( const char *pMapName )
+{
+	return V_stristr( pMapName, "p4coop_" ) || V_stristr( pMapName, "rex4c_" );
+}
+
 KeyValues *LoadMapDataForMap( const char *pszMapName )
 {
 	char szMapFilePath[MAX_MAP_NAME];
