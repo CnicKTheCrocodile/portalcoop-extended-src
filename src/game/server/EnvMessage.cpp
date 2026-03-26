@@ -163,6 +163,8 @@ public:
 
 	virtual void OnRestore();
 private:
+	void		SendCreditsMessage( CBasePlayer *pPlayer, int nCreditsType );
+
 
 	void		RollOutroCredits();
 
@@ -223,14 +225,19 @@ void CCredits::RollOutroCredits()
 		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
 		if (pPlayer)
 		{
-			CSingleUserRecipientFilter user( pPlayer );
-			user.MakeReliable();
-
-			UserMessageBegin( user, "CreditsMsg" );
-				WRITE_BYTE( 3 );
-			MessageEnd();
+			SendCreditsMessage( pPlayer, 3 );
 		}
 	}
+}
+
+void CCredits::SendCreditsMessage( CBasePlayer *pPlayer, int nCreditsType )
+{
+	CSingleUserRecipientFilter user( pPlayer );
+	user.MakeReliable();
+
+	UserMessageBegin( user, "CreditsMsg" );
+		WRITE_BYTE( nCreditsType );
+	MessageEnd();
 }
 
 void CCredits::InputRollOutroCredits( inputdata_t &inputdata )
@@ -261,9 +268,7 @@ void CCredits::InputShowLogo( inputdata_t &inputdata )
 			}
 			else
 			{
-				UserMessageBegin( user, "CreditsMsg" );
-					WRITE_BYTE( 1 );
-				MessageEnd();
+				SendCreditsMessage( pPlayer, 1 );
 			}
 		}
 	}
@@ -281,12 +286,7 @@ void CCredits::InputRollCredits( inputdata_t &inputdata )
 		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
 		if (pPlayer)
 		{
-			CSingleUserRecipientFilter user( pPlayer );
-			user.MakeReliable();
-
-			UserMessageBegin( user, "CreditsMsg" );
-				WRITE_BYTE( 2 );
-			MessageEnd();
+			SendCreditsMessage( pPlayer, 2 );
 		}
 	}
 }

@@ -511,6 +511,15 @@ void CHudPortalCredits::ReadParams( KeyValues *pKeyValue )
 	m_flY = pKeyValue->GetFloat( "posy", 2 );
 
 	m_cColor = pKeyValue->GetColor( "color" );
+	if ( pKeyValue->FindKey( "color" ) == NULL )
+	{
+		m_cColor = m_TextColor;
+	}
+	else if ( m_cColor[3] == 0 )
+	{
+		// Keep script RGB while preserving scheme alpha when alpha isn't specified.
+		m_cColor[3] = m_TextColor[3];
+	}
 }
 
 int CHudPortalCredits::GetStringPixelWidth( wchar_t *pString, vgui::HFont hFont )
@@ -573,7 +582,7 @@ void CHudPortalCredits::DrawOutroCreditsName( void )
 			pCredit->bActive = true;
 		}
 
-		Color cColor = m_TextColor;
+		Color cColor = m_cColor;
 
 		//HACKHACK
 		//Last one stays on screen and fades out
@@ -716,7 +725,7 @@ void CHudPortalCredits::DrawPortalOutroCreditsName( void )
 				pCredit->bActive = true;
 		}
 
-		Color cColor = m_TextColor;
+		Color cColor = m_cColor;
 
 		//HACKHACK
 		//Last one stays on screen and fades out
@@ -1186,7 +1195,7 @@ void CHudPortalCredits::DrawLogo( void )
 
 	int iFontTall = surface()->GetFontTall ( m_hTFont );
 
-	Color cColor = m_TextColor;
+	Color cColor = m_cColor;
 	cColor[3] = m_Alpha;
 				
 	surface()->DrawSetTextFont( m_hTFont );
@@ -1368,6 +1377,7 @@ void CHudPortalCredits::PrepareLogo( float flTime )
 void CHudPortalCredits::PrepareOutroCredits( void )
 {
 	PrepareCredits( "OutroCreditsNames" );
+	m_Alpha = m_cColor[3];
 	
 	if ( m_CreditsList.Count() == 0 )
 		 return;
@@ -1408,6 +1418,7 @@ void CHudPortalCredits::PreparePortalOutroCredits( void )
 	m_iCurrentLowY = 0;
 	m_bStartSong = true;
 	m_flLyricsStartTime = -1;
+	m_Alpha = m_cColor[3];
 
 	m_iCurrentAsciiArt = 0;
 	

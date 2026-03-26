@@ -35,6 +35,7 @@ public:
 	virtual void Precache();
 	virtual void OnRestore();
 private:
+	void		SendCreditsMessage( int nCreditsType );
 
 	void		RollOutroCredits();
 	void		RollPortalOutroCredits();
@@ -100,14 +101,18 @@ void CPortalCredits::OnRestore()
 void CPortalCredits::RollOutroCredits()
 {
 	sv_unlockedchapters.SetValue( "15" );
-	
+	SendCreditsMessage( 3 );
+}
+
+void CPortalCredits::SendCreditsMessage( int nCreditsType )
+{
 	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
 	CSingleUserRecipientFilter user( pPlayer );
 	user.MakeReliable();
 
 	UserMessageBegin( user, "CreditsPortalMsg" );
-		WRITE_BYTE( 3 );
+		WRITE_BYTE( nCreditsType );
 	MessageEnd();
 }
 
@@ -124,15 +129,7 @@ void CPortalCredits::InputRollOutroCredits( inputdata_t &inputdata )
 void CPortalCredits::RollPortalOutroCredits()
 {
 	sv_unlockedchapters.SetValue( "15" );
-	
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-	CSingleUserRecipientFilter user( pPlayer );
-	user.MakeReliable();
-
-	UserMessageBegin( user, "CreditsPortalMsg" );
-		WRITE_BYTE( 4 );
-	MessageEnd();
+	SendCreditsMessage( 4 );
 }
 
 void CPortalCredits::InputRollPortalOutroCredits( inputdata_t &inputdata )
@@ -161,9 +158,7 @@ void CPortalCredits::InputShowLogo( inputdata_t &inputdata )
 	}
 	else
 	{
-		UserMessageBegin( user, "CreditsPortalMsg" );
-			WRITE_BYTE( 1 );
-		MessageEnd();
+		SendCreditsMessage( 1 );
 	}
 }
 
@@ -175,12 +170,5 @@ void CPortalCredits::InputSetLogoLength( inputdata_t &inputdata )
 
 void CPortalCredits::InputRollCredits( inputdata_t &inputdata )
 {
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-	CSingleUserRecipientFilter user( pPlayer );
-	user.MakeReliable();
-
-	UserMessageBegin( user, "CreditsPortalMsg" );
-		WRITE_BYTE( 2 );
-	MessageEnd();
+	SendCreditsMessage( 2 );
 }

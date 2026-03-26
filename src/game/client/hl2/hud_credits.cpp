@@ -254,6 +254,15 @@ void CHudCredits::ReadParams( KeyValues *pKeyValue )
 	m_flY = pKeyValue->GetFloat( "posy", 2 );
 
 	m_cColor = pKeyValue->GetColor( "color" );
+	if ( pKeyValue->FindKey( "color" ) == NULL )
+	{
+		m_cColor = m_TextColor;
+	}
+	else if ( m_cColor[3] == 0 )
+	{
+		// Keep script RGB while preserving scheme alpha when alpha isn't specified.
+		m_cColor[3] = m_TextColor[3];
+	}
 
 	Q_strncpy( m_szLogo, pKeyValue->GetString( "logo", "HALF-LIFE'" ), sizeof( m_szLogo ) );
 	Q_strncpy( m_szLogo2, pKeyValue->GetString( "logo2", "" ), sizeof( m_szLogo2 ) );
@@ -302,7 +311,7 @@ void CHudCredits::DrawOutroCreditsName( void )
 			pCredit->bActive = true;
 		}
 
-		Color cColor = m_TextColor;
+		Color cColor = m_cColor;
 
 		//HACKHACK
 		//Last one stays on screen and fades out
@@ -444,7 +453,7 @@ void CHudCredits::DrawLogo( void )
 
 	int iFontTall = surface()->GetFontTall ( m_hTFont );
 
-	Color cColor = m_TextColor;
+	Color cColor = m_cColor;
 	cColor[3] = m_Alpha;
 				
 	surface()->DrawSetTextFont( m_hTFont );
@@ -635,6 +644,7 @@ void CHudCredits::PrepareLine( vgui::HFont hFont, char const *pchLine )
 void CHudCredits::PrepareOutroCredits( void )
 {
 	PrepareCredits( "OutroCreditsNames" );
+	m_Alpha = m_cColor[3];
 	
 	if ( m_CreditsList.Count() == 0 )
 		 return;
