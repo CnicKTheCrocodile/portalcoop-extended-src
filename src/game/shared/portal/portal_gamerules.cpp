@@ -53,9 +53,6 @@ ConVar sv_spawn_with_suit( "sv_spawn_with_suit", "0", FCVAR_CHEAT, "Sets whether
 ConVar sv_portalgun_spawn( "sv_portalgun_spawn", "0", FCVAR_CHEAT, "Sets if the player should spawn with the portalgun" );
 ConVar sv_portalgun_color( "sv_portalgun_color", "2", FCVAR_CHEAT, "Sets what portalgun colors players spawn with. 0 = Primary, 1 = Secondary, 2 = Both" );
 #endif
-ConVar sv_restart_server( "sv_restart_server", "0", FCVAR_REPLICATED, "When all players disconnect, the game will change the map back to the first map in the map set" );
-ConVar sv_restart_server_map( "sv_restart_server_map", "", FCVAR_REPLICATED, "Map to change when all players disconnect (requires sv_restart_server to be 1)" );
-ConVar sv_restart_server_include_bots( "sv_restart_server_include_bots", "1", FCVAR_REPLICATED, "Sets if bots should be considered when checking for the amount of clients in the server" );
 
 ConVar pcoop_paused( "pcoop_paused", "0", FCVAR_REPLICATED | FCVAR_HIDDEN );
 
@@ -1697,33 +1694,6 @@ void CPortalGameRules::ClientDisconnected( edict_t *pClient )
 		pPlayer->SetConnected( PlayerDisconnected );
 	}
 
-	if ( sv_restart_server.GetBool() )
-	{
-		int iConnectedPlayers = 0;
-
-		for ( int i = 1; i <= gpGlobals->maxClients; ++i )
-		{
-			CBasePlayer *pConnectedPlayer = UTIL_PlayerByIndex( i );
-
-			if ( !pConnectedPlayer )
-				continue;
-
-			if ( pConnectedPlayer->IsBot() && !sv_restart_server_include_bots.GetBool() )
-				continue;
-
-			++iConnectedPlayers;
-
-		}
-
-		// We actually have to subtract this value by 1
-		--iConnectedPlayers;
-			
-		if ( iConnectedPlayers == 0 )
-		{
-			engine->ChangeLevel( sv_restart_server_map.GetString(), NULL );
-		}
-	}
-
 	if ( pPlayer && PlayerShouldPlay( pPlayer->entindex() ) )
 	{
 		--m_iPlayingPlayers;
@@ -1746,7 +1716,7 @@ void CPortalGameRules::ClientDisconnected( edict_t *pClient )
 }
 
 float g_flTimeWhenPaused = 0.0f;
-float g_flGameTimeWhenPaused = 0.0f;
+//float g_flGameTimeWhenPaused = 0.0f;
 //float g_flServerTimeWhenPaused = 0.0f;
 int g_iPauseTick = 0;
 CUtlVector<CBaseEntity*> g_AllPausables;
@@ -1754,7 +1724,7 @@ CUtlVector<CBaseEntity*> g_AllPausables;
 void ResetAllPauseData( void )
 {
 	g_flTimeWhenPaused = 0.0f;
-	g_flGameTimeWhenPaused = 0.0f;
+	//g_flGameTimeWhenPaused = 0.0f;
 	//g_flServerTimeWhenPaused = 0.0f;
 	g_iPauseTick = 0;
 }
@@ -1825,7 +1795,7 @@ void CPortalGameRules::CheckShouldPause( void )
 			
 			g_flTimeWhenPaused = gpGlobals->curtime;
 			extern float g_flGameCurTime;
-			g_flGameTimeWhenPaused = g_flGameCurTime;
+			//g_flGameTimeWhenPaused = g_flGameCurTime;
 			//g_flServerTimeWhenPaused = engine->GetServerTime();
 			g_iPauseTick = gpGlobals->tickcount;
 

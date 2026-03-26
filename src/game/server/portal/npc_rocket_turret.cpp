@@ -140,7 +140,9 @@ public:
 		// stationary so that it doesn't change
 		// its target based on its offset
 		
-		return GetAbsOrigin() + Vector( 0, 0, 40.0 );
+		Vector up;
+		GetVectors( NULL, NULL, &up );
+		return GetAbsOrigin() + (up * 40.0);
 
 		/* 
 		Vector vMuzzlePos;
@@ -1011,46 +1013,7 @@ void CNPC_RocketTurret::HackFindEnemy(void)
 		{
 			SetEnemy( pNearest );
 		}
-		// No enemy still? Then manually search for visible players.
-		if ( GetEnemy() == NULL )
-		{
-			for (int i = 1; i <= gpGlobals->maxClients; ++i)
-			{
-				CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
-
-				if (!pPlayer)
-					continue;
-
-				if ((pPlayer->GetFlags() & FL_NOTARGET))
-					continue;
-				
-
-				Vector vecMidEnemy = pPlayer->GetAbsOrigin() + (pPlayer->WorldAlignMins() + pPlayer->WorldAlignMaxs()) * 0.5f;
-				bool bEnemyVisibleInWorld = FVisible(pPlayer);
-
-				// Test portals in our view as possible ways to view the player
-				bool bEnemyVisibleThroughPortal = TestPortalsForLOS( &vecMidEnemy, bEnemyVisibleInWorld );
-
-				bool bEnemyVisible = bEnemyVisibleInWorld || bEnemyVisibleThroughPortal;
-
-				if (bEnemyVisible)
-				{
-					SetEnemy(pPlayer);
-					break;
-				}				
-			}
-		}
 	}
-
-	/*
-	{
-		Msg("/ Enemy Info: /\n");
-		if (GetEnemy())
-			Msg("Classname: %s\n", GetEnemy()->GetClassname());
-		else
-			Msg("No info\n");
-	}
-	*/
 }
 
 //-----------------------------------------------------------------------------
