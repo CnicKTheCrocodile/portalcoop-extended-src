@@ -124,9 +124,6 @@ void CPropTractorBeamProjector::Spawn()
 
 	SetFadeDistance(-1.0, 0.0);
 	AddEffects(EF_NOSHADOW);
-
-	if (m_bEnabled)
-		CreateSpriteTrails();
 }
 
 void CPropTractorBeamProjector::CreateSpriteTrails()
@@ -205,6 +202,7 @@ void CPropTractorBeamProjector::Precache()
 
 	PrecacheMaterial("particle/particle_flares/tbeam_arm.vmt");
 	PrecacheMaterial("particle/beam_hotblue_add_oriented.vmt");
+	PrecacheMaterial("particle/particle_ring_pulled_add_oriented");
 
 	PrecacheParticleSystem("tractor_beam_arm");
 	PrecacheParticleSystem("tractor_beam_core");
@@ -219,6 +217,7 @@ void CPropTractorBeamProjector::Precache()
 void CPropTractorBeamProjector::Project(void)
 {
 	BaseClass::Project();
+	CreateSpriteTrails();
 
 	m_vEndPos = m_hFirstChild->GetEndPoint();
 

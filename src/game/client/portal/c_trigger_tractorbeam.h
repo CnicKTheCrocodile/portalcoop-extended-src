@@ -6,17 +6,22 @@
 #include "c_triggers.h"
 #include "vphysics_interface.h"
 #include "c_baseprojectedentity.h"
+#include "functionproxy.h"
 
 #ifdef NO_TRACTOR_BEAM
 #error "THIS FILE SHOULDN'T BE INCLUDED"
 #endif
+
+// These were probably #defines
+#define TRACTOR_BEAM_RADIUS_INNER 58.0f
+#define TRACTOR_BEAM_RADIUS_OUTER 60.0f
+#define TRACTOR_BEAM_EXTEND_TIME  1.0f
 
 #define CTrigger_TractorBeam C_Trigger_TractorBeam
 
 DECLARE_AUTO_LIST(ITriggerTractorBeamAutoList)
 
 class C_Trigger_TractorBeam;
-class C_PaintBlob;
 
 class C_ProjectedTractorBeamEntity : public C_BaseProjectedEntity
 {
@@ -30,6 +35,7 @@ public:
 	virtual void GetProjectionExtents(Vector& outMins, Vector& outMaxs);
 	virtual void OnProjected();
 
+private:
 	CHandle<C_Trigger_TractorBeam> m_hTractorBeamTrigger;
 };
 
@@ -40,6 +46,8 @@ public:
 	DECLARE_CLIENTCLASS();
 	DECLARE_PREDICTABLE();
 
+	virtual bool IsPredicted(void) OVERRIDE { return true; }
+
 	//C_Trigger_TractorBeam( C_Trigger_TractorBeam & ); // In pdb ripper, but: ???
 	C_Trigger_TractorBeam();
 	~C_Trigger_TractorBeam();
@@ -47,7 +55,7 @@ public:
 	virtual void	Spawn(void);
 	virtual void	OnNewParticleEffect(const char* pszParticleName, CNewParticleEffect* pNewParticleEffect);
 
-	virtual void ClientThink();
+	virtual void	ClientThink();
 	virtual int		DrawModel(int flags);
 
 	virtual bool	ShouldDraw(void);
@@ -59,9 +67,9 @@ public:
 
 	virtual bool	ShouldPredict(void);
 
-	virtual C_BaseEntity* GetEntity(void) { return this; }
+	virtual RenderGroup_t GetRenderGroup(void) OVERRIDE;
 
-	void	CorrectBeamTrajectory(Vector& start, Vector& end);
+	virtual C_BaseEntity* GetEntity(void) { return this; }
 
 	void	CalculateFrameMovement(IPhysicsObject* pObject, CBaseEntity* pEntity, float deltaTime, Vector& linear, AngularImpulse& angular);
 	void	UpdateBeam(const Vector& vStartPoint, const Vector& vEndPoint, float flLinearForce);
@@ -99,22 +107,17 @@ public:
 
 	float GetBeamRadius() { return m_flRadius; }
 
-	void	RemoveDeadBlobs(void);
-	void	RemoveChangedBeamBlobs(void);
-	void	RemoveAllBlobsFromBeam(void);
-
 	Vector	GetForceDirection() const;
 	Vector	GetStartPoint(void) const { return m_vStart; }
 	Vector	GetEndPoint(void) const { return m_vEnd; }
 
+	static void RecvProxy_Start(const CRecvProxyData* pData, void* pStruct, void* pOut);
+	static void RecvProxy_End(const CRecvProxyData* pData, void* pStruct, void* pOut);
 
-	//PaintBlobVector_t m_blobs;
-
-	CUtlVector<C_PaintBlob*> m_blobs;
-
-	//protected:
+protected:
 
 	void CreateParticles();
+	void DrawRotatingPanels(const Vector &vImpact, const Vector &vNormal);
 
 	void DrawColumn(IMaterial* pMaterial, Vector& vecStart, Vector vDir, float flLength, Vector& vecXAxis, Vector& vecYAxis,
 		float flRadius, float flAlpha, bool bPinchIn, bool bPinchOut, float flTextureOffset);
@@ -125,14 +128,6 @@ public:
 	Vector m_vStart;
 	Vector m_vEnd;
 
-	Vector m_lastUpdatedStart = vec3_invalid;
-	Vector m_lastUpdatedEnd = vec3_invalid;
-	float m_lastUpdatedForce = FLT_MAX;
-	bool m_lastUpdatedReversed = false;
-	bool m_bWasVisible = false;
-
-	bool m_bTractorIsEnable;
-
 	float m_linearForce;
 	float m_flRadius;
 	bool m_bReversed;
@@ -140,8 +135,7 @@ public:
 	bool m_bToPortal;
 	bool m_bDisablePlayerMove;
 	IMaterial* m_pMaterial1;
-	IMaterial* m_pMaterial2;
-	IMaterial* m_pMaterial3;
+	IMaterial* m_pPanelMaterial;
 	bool m_bRecreateParticles;
 
 	CHandle<C_ProjectedTractorBeamEntity> m_hProxyEntity;
@@ -162,16 +156,21 @@ public:
 
 	float m_flLength;
 	float m_flCurDisplayLength;
+	float m_flPanelSpinStartTime;
 	Vector m_vTargetDisplayPoint;
-
-	CNetworkColor32(m_TBeamForwardColor);
-	CNetworkColor32(m_TBeamReversedColor);
 
 private:
 
 	float m_flStartTime;
 	int m_nLastUpdateFrame;
 
+};
+
+class CTractorBeamProxy : public CResultProxy
+{
+public:
+	virtual bool Init(IMaterial* pMaterial, KeyValues* pKeyValues);
+	virtual void OnBind(void* pC_BaseEntity);
 };
 
 #endif

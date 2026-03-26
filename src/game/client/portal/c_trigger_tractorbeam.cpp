@@ -2,11 +2,9 @@
 #include "trigger_tractorbeam_shared.h"
 #include "c_portal_player.h"
 #include "soundinfo.h"
+#include "c_trigger_tractorbeam.h"
 
 #undef CProjectedTractorBeamEntity // Just in case
-
-#define PORTAL_TRIGGERTRACTOR_FORWARD_BEAM_COLOR			"10 160 255"
-#define PORTAL_TRIGGERTRACTOR_REVERSED_BEAM_COLOR			"255 160 32"
 
 ConVar cl_projected_tractor_beam_speed("cl_projected_tractor_beam_speed", "45", FCVAR_CLIENTDLL);
 
@@ -40,92 +38,32 @@ void C_ProjectedTractorBeamEntity::GetProjectionExtents(Vector& outMins, Vector&
 	outMaxs.z = 0.0;
 }
 
-void UpdateAllTractorBeams()
-{
-	for (int i = 0; i < ITriggerTractorBeamAutoList::AutoList().Count(); ++i)
-	{
-		C_Trigger_TractorBeam* pBeam = static_cast<C_Trigger_TractorBeam*>(ITriggerTractorBeamAutoList::AutoList()[i]);
-		if (!pBeam)
-			continue;
-
-		const Vector& newStart = pBeam->m_vStart;
-		const Vector& newEnd = pBeam->m_vEnd;
-		const float newForce = pBeam->m_linearForce;
-		const bool newReversed = (newForce < 0.0f);
-		const bool visibleNow = pBeam->ShouldDraw();
-
-		const bool bJustBecameVisible = (!pBeam->m_bWasVisible && visibleNow);
-
-		const bool bChanged =
-			(pBeam->m_lastUpdatedStart != newStart) ||
-			(pBeam->m_lastUpdatedEnd != newEnd) ||
-			(pBeam->m_lastUpdatedForce != newForce) ||
-			(pBeam->m_lastUpdatedReversed != newReversed);
-
-		if (bChanged || bJustBecameVisible)
-		{
-			pBeam->UpdateBeam(newStart, newEnd, newForce);
-
-			pBeam->CreateParticles();
-
-			pBeam->m_lastUpdatedStart = newStart;
-			pBeam->m_lastUpdatedEnd = newEnd;
-			pBeam->m_lastUpdatedForce = newForce;
-			pBeam->m_lastUpdatedReversed = newReversed;
-		}
-
-		pBeam->m_bWasVisible = visibleNow;
-	}
-}
-
-void ForceUpdateAllTractorBeams()
-{
-	for (int i = 0; i < ITriggerTractorBeamAutoList::AutoList().Count(); ++i)
-	{
-		C_Trigger_TractorBeam* pBeam = static_cast<C_Trigger_TractorBeam*>(ITriggerTractorBeamAutoList::AutoList()[i]);
-		if (!pBeam)
-			continue;
-
-		const Vector& start = pBeam->m_vStart;
-		const Vector& end = pBeam->m_vEnd;
-		const float force = pBeam->m_linearForce;
-		const bool reversed = pBeam->m_bReversed;
-
-
-		pBeam->UpdateBeam(start, end, force);
-
-
-		pBeam->m_lastUpdatedStart = start;
-		pBeam->m_lastUpdatedEnd = end;
-		pBeam->m_lastUpdatedForce = force;
-		pBeam->m_lastUpdatedReversed = reversed;
-
-		pBeam->m_bWasVisible = pBeam->ShouldDraw();
-	}
-}
-
-
-
 void C_ProjectedTractorBeamEntity::OnProjected(void)
 {
 	BaseClass::OnProjected();
-	if (m_hTractorBeamTrigger)
+
+	C_Trigger_TractorBeam* pTrigger = m_hTractorBeamTrigger;
+	if (pTrigger)
 	{
-		m_hTractorBeamTrigger->SetPredictionEligible(GetPredictionEligible());
+		pTrigger->SetPredictionEligible(GetPredictionEligible());
 
 		if (IsPlayerSimulated())
 		{
 			if (GetSimulatingPlayer())
-				m_hTractorBeamTrigger->SetPlayerSimulated(GetSimulatingPlayer());
+				pTrigger->SetPlayerSimulated(GetSimulatingPlayer());
 			else
-				m_hTractorBeamTrigger->SetPlayerSimulated(NULL);
+				pTrigger->SetPlayerSimulated(NULL);
 		}
 		else
 		{
-			m_hTractorBeamTrigger->UnsetPlayerSimulated();
+			pTrigger->UnsetPlayerSimulated();
 		}
 
-		UpdateAllTractorBeams();
+		float flForce = pTrigger->GetLinearForce();
+		if (pTrigger->IsReversed())
+			flForce = -flForce;
+
+		pTrigger->UpdateBeam(GetStartPoint(), GetEndPoint(), flForce);
 	}
 }
 
@@ -147,8 +85,8 @@ RecvPropFloat(RECVINFO(m_linearForce)),
 RecvPropFloat(RECVINFO(m_flRadius)),
 
 RecvPropQAngles(RECVINFO(m_linearForceAngles)),
-RecvPropVector(RECVINFO(m_vStart)),
-RecvPropVector(RECVINFO(m_vEnd)),
+RecvPropVector(RECVINFO(m_vStart), 0, &C_Trigger_TractorBeam::RecvProxy_Start),
+RecvPropVector(RECVINFO(m_vEnd), 0, &C_Trigger_TractorBeam::RecvProxy_End),
 
 RecvPropBool(RECVINFO(m_bDisabled)),
 RecvPropBool(RECVINFO(m_bReversed)),
@@ -174,28 +112,12 @@ IMPLEMENT_AUTO_LIST(ITriggerTractorBeamAutoList)
 
 C_Trigger_TractorBeam::C_Trigger_TractorBeam()
 {
-	m_blobs.Purge();
 	m_hProxyEntity = NULL;
 	m_hCoreEffect = NULL;
 	m_bDisabled = false;
-
-	m_flLength = 0.0f;
-	m_flCurDisplayLength = 0.0f;
-
-	int r1 = 0xFF, g1 = 0x00, b1 = 0x00;
-	int r2 = 0xFF, g2 = 0x00, b2 = 0x00;
-	const char* szColours1 = PORTAL_TRIGGERTRACTOR_FORWARD_BEAM_COLOR;
-	const char* szColours2 = PORTAL_TRIGGERTRACTOR_REVERSED_BEAM_COLOR;
-	if (szColours1 != NULL && Q_strlen(szColours1) > 0) {
-		sscanf(szColours1, "%i%i%i", &r1, &g1, &b1);
-	}
-	if (szColours2 != NULL && Q_strlen(szColours2) > 0) {
-		sscanf(szColours2, "%i%i%i", &r2, &g2, &b2);
-	}
-
-	m_TBeamForwardColor.Init(r1, g1, b1);
-	m_TBeamReversedColor.Init(r2, g2, b2);
-
+	m_pMaterial1 = NULL;
+	m_pPanelMaterial = NULL;
+	m_flPanelSpinStartTime = 0.0f;
 }
 
 C_Trigger_TractorBeam::~C_Trigger_TractorBeam()
@@ -208,13 +130,10 @@ void C_Trigger_TractorBeam::Spawn(void)
 	BaseClass::Spawn();
 	if (!m_pMaterial1)
 		m_pMaterial1 = materials->FindMaterial("effects/tractor_beam", NULL, false);
-	if (!m_pMaterial2)
-		m_pMaterial2 = materials->FindMaterial("effects/tractor_beam2", NULL, false);
-	if (!m_pMaterial3)
-		m_pMaterial3 = materials->FindMaterial("effects/tractor_beam3", NULL, false);
+	if (!m_pPanelMaterial)
+		m_pPanelMaterial = materials->FindMaterial("particle/particle_ring_pulled_add_oriented", NULL, false);
 
 	SetNextClientThink(CLIENT_THINK_ALWAYS);
-
 }
 
 void C_Trigger_TractorBeam::UpdateOnRemove(void)
@@ -236,7 +155,7 @@ void C_Trigger_TractorBeam::UpdateOnRemove(void)
 
 	if (m_hCoreEffect)
 	{
-		ParticleProp()->StopEmission(m_hCoreEffect, false, true);
+		ParticleProp()->StopEmission(m_hCoreEffect);
 	}
 
 	for (int i = 1; i <= MAX_PLAYERS; ++i)
@@ -264,9 +183,9 @@ void C_Trigger_TractorBeam::StartTouch(C_BaseEntity* pOther)
 	}
 	else
 	{
-		if (m_pController && m_pPhysicsObject)
+		if (m_pController && pOther->VPhysicsGetObject())
 		{
-			m_pController->AttachObject(m_pPhysicsObject, true);
+			m_pController->AttachObject(pOther->VPhysicsGetObject(), true);
 		}
 	}
 
@@ -304,6 +223,7 @@ void C_Trigger_TractorBeam::ClientThink()
 
 int C_Trigger_TractorBeam::DrawModel(int flags)
 {
+	//bool bDrawOuterColumn = ( gpu_level.GetInt() > 1 );
 
 	Vector vDir = m_vEnd - m_vStart;
 
@@ -315,39 +235,26 @@ int C_Trigger_TractorBeam::DrawModel(int flags)
 
 	float flLength = m_flCurDisplayLength;
 
-#if 0 // TODO: This is probably supposed to be the code that makes the funnel do its "extend" animation - disabling for now until we get it working
-	if ((gpGlobals->curtime - m_flStartTime) < 0.5)
-	{
-		float flMod1;
+	//if ( gpGlobals->curtime < ( m_flStartTime + TRACTOR_BEAM_EXTEND_TIME ) )
+	//{
+		//float flLengthMod;
 
-		// This code doesn't make any fucking sense
-		if (m_flStartTime == (m_flStartTime + 0.5))
-		{
-			if (gpGlobals->curtime < (m_flStartTime + 0.5))
-				flMod1 = 0.0;
-			else
-				flMod1 = 1.0;
-		}
-		else
-		{
-			float flMod2;
-			float flRemainingTime = (gpGlobals->curtime - m_flStartTime) / ((m_flStartTime + 0.5) - m_flStartTime);
-			if (flRemainingTime >= 0.0)
-			{
-				if (flRemainingTime <= 1.0)
-					flMod2 = flRemainingTime;
-				else
-					flMod2 = 1.0;
-			}
-			else
-			{
-				flMod2 = 0.0;
-			}
-			flMod1 = ((flMod2 * flMod2) * 3.0) - (((flMod2 * flMod2) * 2.0) * flMod2);
-		}
-		flLength = flMod1 * flLength;
-	}
-#endif
+		//float flMod2;
+		//float flRemainingTime = (gpGlobals->curtime - m_flStartTime) / ( ( m_flStartTime + 0.5 ) - m_flStartTime );
+		//if (flRemainingTime >= 0.0)
+		//{
+		//	if (flRemainingTime <= 1.0)
+		//		flMod2 = flRemainingTime;
+		//	else
+		//		flMod2 = 1.0;
+		//}
+		//else
+		//{
+		//	flMod2 = 0.0;
+		//}
+		//flLengthMod = ( (flMod2 * flMod2) * 3.0 ) - ( ( (flMod2 * flMod2) * 2.0 ) * flMod2 );
+		//flLength = flRemainingTime * flLength;
+	//}
 
 	matrix3x4_t xform;
 	QAngle angles;
@@ -360,15 +267,119 @@ int C_Trigger_TractorBeam::DrawModel(int flags)
 	MatrixGetColumn(xform, 2, xAxis);
 	MatrixGetColumn(xform, 1, yAxis);
 
-	C_Trigger_TractorBeam::DrawColumn(m_pMaterial1, m_vStart, vDir, flLength, xAxis, yAxis, 58.0, 1.0, m_bFromPortal, m_bToPortal, 0.0);
+	// This probably used the preprocessor definition
+	C_Trigger_TractorBeam::DrawColumn(m_pMaterial1, m_vStart, vDir, flLength, xAxis, yAxis, TRACTOR_BEAM_RADIUS_INNER, 1.0, m_bFromPortal, m_bToPortal, 0.0);
+
+	Vector vStartNormal = -vDir;
+	Vector vEndNormal = -vDir;
+
+	trace_t trImpact;
+	UTIL_TraceLine(m_vStart, m_vEnd, MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &trImpact);
+	if (trImpact.fraction < 1.0f)
+	{
+		vEndNormal = trImpact.plane.normal;
+	}
+
+	DrawRotatingPanels(m_vStart, vStartNormal);
+	DrawRotatingPanels(m_vEnd, vEndNormal);
+
+	// Outer column (tractor_beam2) is skipped on low GPU levels
+	//if (bDrawOuterColumn)
+	//	C_Trigger_TractorBeam::DrawColumn( m_pMaterial2, m_vStart, vDir, flLength, xAxis, yAxis, TRACTOR_BEAM_RADIUS_OUTER, 1.0, m_bFromPortal, m_bToPortal, 0.0 );
 
 	return 1;
+}
+
+void C_Trigger_TractorBeam::DrawRotatingPanels(const Vector &vImpact, const Vector &vNormal)
+{
+	if (!m_pPanelMaterial)
+		return;
+
+	Vector vPanelNormal = vNormal;
+	if (VectorNormalize(vPanelNormal) <= 0.0f)
+		return;
+
+	Vector vReference = (fabsf(vPanelNormal.z) < 0.999f) ? Vector(0.0f, 0.0f, 1.0f) : Vector(0.0f, 1.0f, 0.0f);
+	Vector vPlaneRight;
+	CrossProduct(vReference, vPanelNormal, vPlaneRight);
+	if (VectorNormalize(vPlaneRight) <= 0.0f)
+		return;
+
+	Vector vPlaneUp;
+	CrossProduct(vPanelNormal, vPlaneRight, vPlaneUp);
+	VectorNormalize(vPlaneUp);
+
+	const float flSpinSpeedDegrees = 180.0f;
+	const float flElapsed = gpGlobals->curtime - m_flPanelSpinStartTime;
+	const float flClockwise = DEG2RAD(flElapsed * flSpinSpeedDegrees);
+	const float flCounterClockwise = -flClockwise;
+	const float flPi = 3.14159265f;
+	const float flHalfPi = flPi * 0.5f;
+
+	const float flHalfPanelWidth = TRACTOR_BEAM_RADIUS_INNER * 1.25f;
+	const float flHalfPanelLength = TRACTOR_BEAM_RADIUS_INNER * 1.25f;
+	const float flAngles[4] = {
+		flClockwise,
+		flClockwise + flPi,
+		flCounterClockwise + flHalfPi,
+		flCounterClockwise + (flHalfPi * 3.0f),
+	};
+
+	const int nColorR = m_bReversed ? 255 : 28;
+	const int nColorG = m_bReversed ? 124 : 130;
+	const int nColorB = m_bReversed ? 24 : 255;
+	const int nColorA = 90;
+
+	CMatRenderContextPtr pRenderContext(materials);
+	pRenderContext->Bind(m_pPanelMaterial, GetClientRenderable());
+	IMesh *pMesh = pRenderContext->GetDynamicMesh(false, NULL, NULL, m_pPanelMaterial);
+
+	CMeshBuilder meshBuilder;
+	meshBuilder.Begin(pMesh, MATERIAL_QUADS, 4);
+
+	for (int i = 0; i < ARRAYSIZE(flAngles); ++i)
+	{
+		const float flCos = cosf(flAngles[i]);
+		const float flSin = sinf(flAngles[i]);
+		const Vector vPanelRight = (vPlaneRight * flCos) + (vPlaneUp * flSin);
+		Vector vPanelUp = CrossProduct(vPanelNormal, vPanelRight);
+		VectorNormalize(vPanelUp);
+
+		const Vector vStartA = (vImpact - (vPanelUp * flHalfPanelLength)) - (vPanelRight * flHalfPanelWidth);
+		const Vector vStartB = (vImpact - (vPanelUp * flHalfPanelLength)) + (vPanelRight * flHalfPanelWidth);
+		const Vector vEndA = (vImpact + (vPanelUp * flHalfPanelLength)) - (vPanelRight * flHalfPanelWidth);
+		const Vector vEndB = (vImpact + (vPanelUp * flHalfPanelLength)) + (vPanelRight * flHalfPanelWidth);
+
+		meshBuilder.Color4ub(nColorR, nColorG, nColorB, nColorA);
+		meshBuilder.TexCoord2f(0, 0.0f, 0.0f);
+		meshBuilder.Position3fv(vStartA.Base());
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color4ub(nColorR, nColorG, nColorB, nColorA);
+		meshBuilder.TexCoord2f(0, 1.0f, 0.0f);
+		meshBuilder.Position3fv(vStartB.Base());
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color4ub(nColorR, nColorG, nColorB, nColorA);
+		meshBuilder.TexCoord2f(0, 1.0f, 1.0f);
+		meshBuilder.Position3fv(vEndB.Base());
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color4ub(nColorR, nColorG, nColorB, nColorA);
+		meshBuilder.TexCoord2f(0, 0.0f, 1.0f);
+		meshBuilder.Position3fv(vEndA.Base());
+		meshBuilder.AdvanceVertex();
+	}
+
+	meshBuilder.End();
+	pMesh->Draw();
 }
 
 void C_Trigger_TractorBeam::DrawColumn(IMaterial* pMaterial, Vector& vecStart, Vector vDir, float flLength,
 	Vector& vecXAxis, Vector& vecYAxis, float flRadius, float flAlpha, bool bPinchIn, bool bPinchOut, float flTextureOffset)
 {
 	CMatRenderContextPtr pRenderContext(materials);
+	pRenderContext->Bind(pMaterial, GetClientRenderable());
 	IMesh* pMesh = pRenderContext->GetDynamicMesh(false, NULL, NULL, pMaterial);
 
 	CMeshBuilder meshBuilder;
@@ -389,88 +400,111 @@ void C_Trigger_TractorBeam::DrawColumnSegment(CMeshBuilder& meshBuilder, Vector&
 
 	Vector vecPosition = vecStart + (vecXAxis * flRadius);
 
-	int colorR;
+	int colorR = 10;
 	int colorG;
 	int colorB;
 	if (m_bReversed)
 	{
-		colorR = m_TBeamReversedColor->r;
-		colorG = m_TBeamReversedColor->g;
-		colorB = m_TBeamReversedColor->b;
+		colorR = 255;
+		colorG = 160;
+		colorB = 0;
 	}
 	else
 	{
-		colorR = m_TBeamForwardColor->r;
-		colorG = m_TBeamForwardColor->g;
-		colorB = m_TBeamForwardColor->b;
+		colorB = 255;
+		colorG = 190;
 	}
 
-	// U scale based on beam length
-	float flUScale = flLength * (1.0f / 256.0f);
-	float flScrollOffset = gpGlobals->curtime * (m_linearForce * 0.00192) * -1;
+	float flLastV = 0.0;
+	float flU = flLength * 0.00390625;
 
-	float flLastV = 0.0f;
-
-	for (int i = 1; i <= 64; ++i)
+	int i = 1;
+	while (1)
 	{
 		Vector vecLastPosition = vecPosition;
-
-		float fl = i * 0.098174773f;
+		float fl = i * 0.098174773; // Unnamed
 		float flCos = cos(fl);
 		float flSin = sin(fl);
 
+		float flV = i * 0.015625;
 		vecPosition = (vecStart + (vecXAxis * flCos) * flRadius) + ((vecYAxis * flSin) * flRadius);
 		Vector normal = vecStart - vecPosition;
 
 		Vector tangents = vDir;
 		VectorNormalize(tangents);
-		Vector tangentt = CrossProduct(tangents, normal);
-		VectorNormalize(normal);
+		Vector tangentt = (tangents * normal) - (tangents * normal);
 		VectorNormalize(tangentt);
+		VectorNormalize(normal);
 
-		float flV = (float)i / 64.0f;
-
-		// Vertex 1
+		// Vert 1
 		meshBuilder.Color3ub(colorR, colorG, colorB);
-		meshBuilder.TexCoord2f(0, flScrollOffset, flV);
+		meshBuilder.TexCoord2f(0, 0, flV);
 		meshBuilder.Position3fv(vecPosition.Base());
-		if (vertexFormat & VERTEX_NORMAL) meshBuilder.Normal3fv(normal.Base());
-		if (bSetTangentS) meshBuilder.TangentS3fv(tangents.Base());
-		if (bSetTangentT) meshBuilder.TangentT3fv(tangentt.Base());
+
+		if (vertexFormat & VERTEX_NORMAL)
+			meshBuilder.Normal3fv(normal.Base());
+
+		if (bSetTangentS)
+			meshBuilder.TangentS3fv(tangents.Base());
+		if (bSetTangentT)
+			meshBuilder.TangentT3fv(tangentt.Base());
+
 		meshBuilder.AdvanceVertex();
 
-		// Vertex 2
+		// Vert 2
 		Vector vert2 = vDir * flLength + vecPosition;
 		meshBuilder.Color3ub(colorR, colorG, colorB);
-		meshBuilder.TexCoord2f(0, flScrollOffset + flUScale, flV);
+		meshBuilder.TexCoord2f(0, flU, flV);
 		meshBuilder.Position3fv(vert2.Base());
-		if (vertexFormat & VERTEX_NORMAL) meshBuilder.Normal3fv(normal.Base());
-		if (bSetTangentS) meshBuilder.TangentS3fv(tangents.Base());
-		if (bSetTangentT) meshBuilder.TangentT3fv(tangentt.Base());
+
+		if (vertexFormat & VERTEX_NORMAL)
+			meshBuilder.Normal3fv(normal.Base());
+
+		if (bSetTangentS)
+			meshBuilder.TangentS3fv(tangents.Base());
+		if (bSetTangentT)
+			meshBuilder.TangentT3fv(tangentt.Base());
+
 		meshBuilder.AdvanceVertex();
 
-		// Vertex 3
+		// Vert 3
 		Vector vert3 = vDir * flLength + vecLastPosition;
 		normal = vecStart - vecLastPosition;
 		VectorNormalize(normal);
-		tangentt = CrossProduct(tangents, normal);
+		tangentt = (tangents * normal) - (tangents * normal);
 		VectorNormalize(tangentt);
+
 		meshBuilder.Color3ub(colorR, colorG, colorB);
-		meshBuilder.TexCoord2f(0, flScrollOffset + flUScale, flLastV);
+		meshBuilder.TexCoord2f(0, flU, flLastV);
 		meshBuilder.Position3fv(vert3.Base());
-		if (vertexFormat & VERTEX_NORMAL) meshBuilder.Normal3fv(normal.Base());
-		if (bSetTangentS) meshBuilder.TangentS3fv(tangents.Base());
-		if (bSetTangentT) meshBuilder.TangentT3fv(tangentt.Base());
+
+		if (vertexFormat & VERTEX_NORMAL)
+			meshBuilder.Normal3fv(normal.Base());
+
+		if (bSetTangentS)
+			meshBuilder.TangentS3fv(tangents.Base());
+		if (bSetTangentT)
+			meshBuilder.TangentT3fv(tangentt.Base());
+
 		meshBuilder.AdvanceVertex();
 
-		// Vertex 4
+		// Vert 4
 		meshBuilder.Color3ub(colorR, colorG, colorB);
-		meshBuilder.TexCoord2f(0, flScrollOffset, flLastV);
+		meshBuilder.TexCoord2f(0, 0, flLastV);
 		meshBuilder.Position3fv(vecLastPosition.Base());
-		if (vertexFormat & VERTEX_NORMAL) meshBuilder.Normal3fv(normal.Base());
-		if (bSetTangentS) meshBuilder.TangentS3fv(tangents.Base());
-		if (bSetTangentT) meshBuilder.TangentT3fv(tangentt.Base());
+
+		if (vertexFormat & VERTEX_NORMAL)
+			meshBuilder.Normal3fv(normal.Base());
+
+		if (bSetTangentS)
+			meshBuilder.TangentS3fv(tangents.Base());
+		if (bSetTangentT)
+			meshBuilder.TangentT3fv(tangentt.Base());
+
 		meshBuilder.AdvanceVertex();
+
+		if (++i > 64)
+			break;
 
 		flLastV = flV;
 	}
@@ -518,19 +552,23 @@ bool C_Trigger_TractorBeam::GetSoundSpatialization(SpatializationInfo_t& info)
 
 void C_Trigger_TractorBeam::CreateParticles(void)
 {
+
 	m_flCurDisplayLength = 0.0;
+	m_flPanelSpinStartTime = gpGlobals->curtime;
+
+	if (!m_pPanelMaterial)
+		m_pPanelMaterial = materials->FindMaterial("particle/particle_ring_pulled_add_oriented", NULL, false);
 
 	if (m_hCoreEffect)
 	{
-		ParticleProp()->StopEmission(m_hCoreEffect, false, true);
+		ParticleProp()->StopEmission(m_hCoreEffect);
 		m_hCoreEffect = NULL;
 	}
 
 	if (IsReversed())
-		m_hCoreEffect = ParticleProp()->Create("tractor_beam_reversed_core", PATTACH_CUSTOMORIGIN);
+		m_hCoreEffect = ParticleProp()->Create("tractor_beam_reversed_core", PATTACH_ABSORIGIN_FOLLOW);
 	else
-		m_hCoreEffect = ParticleProp()->Create("tractor_beam_core", PATTACH_CUSTOMORIGIN);
-
+		m_hCoreEffect = ParticleProp()->Create("tractor_beam_core", PATTACH_ABSORIGIN_FOLLOW);
 
 	if (m_hCoreEffect)
 	{
@@ -574,7 +612,7 @@ void C_Trigger_TractorBeam::CreateParticles(void)
 		else
 		{
 			color.x = 0.0;
-			color.y = 49;
+			color.y = 120;
 			color.z = 189;
 		}
 		m_hCoreEffect->SetControlPoint(3, color);
@@ -589,27 +627,32 @@ void C_Trigger_TractorBeam::PhysicsSimulate(void)
 void C_Trigger_TractorBeam::OnDataChanged(DataUpdateType_t updateType)
 {
 	BaseClass::OnDataChanged(updateType);
-	if (updateType == DATA_UPDATE_DATATABLE_CHANGED)
+	if (updateType != DATA_UPDATE_CREATED)
 	{
-
-		if (m_lastUpdatedReversed != m_bReversed)
-			UpdateAllTractorBeams();
-		else
-			UpdateAllTractorBeams();
-
-		if (!m_bRecreateParticles)
-			return;
-		m_bRecreateParticles = false;
+		if (m_bRecreateParticles)
+		{
+			m_bRecreateParticles = false;
+			CreateParticles();
+		}
 	}
 	else
 	{
-		if (!m_pController)
+		if (physenv && !m_pController)
 		{
 			m_pController = physenv->CreateMotionController(this);
-			UpdateBeam(m_vStart, m_vEnd, m_linearForce);
+
+			C_ProjectedTractorBeamEntity* pOwner = (C_ProjectedTractorBeamEntity*)GetOwnerEntity();
+
+			float flForce = m_linearForce;
+			if (m_bReversed)
+				flForce = -m_linearForce;
+
+			UpdateBeam(pOwner->GetStartPoint(), pOwner->GetEndPoint(), flForce);
+			m_hProxyEntity = pOwner;
 		}
+
+		CreateParticles();
 	}
-	CreateParticles();
 }
 
 C_BasePlayer* C_Trigger_TractorBeam::GetPredictionOwner(void)
@@ -626,6 +669,11 @@ void C_Trigger_TractorBeam::OnNewParticleEffect(const char* pszParticleName, CNe
 {
 	if (!V_stricmp(pszParticleName, "tractor_beam_src"))
 		pNewParticleEffect->SetControlPoint(2, m_vEnd);
+}
+
+RenderGroup_t C_Trigger_TractorBeam::GetRenderGroup(void)
+{
+	return RENDER_GROUP_TRANSLUCENT_ENTITY;
 }
 
 void C_Trigger_TractorBeam::GetToolRecordingState(KeyValues* msg)
@@ -677,8 +725,7 @@ void C_Trigger_TractorBeam::RestoreToToolRecordedState(KeyValues* pKV)
 	SetSize((const Vector*)vecMin, (const Vector*)((char*)&vecMin_8 + 4));
 #endif
 	m_pMaterial1 = materials->FindMaterial("effects/tractor_beam", 0, 0, 0);
-	m_pMaterial2 = materials->FindMaterial("effects/tractor_beam2", 0, 0, 0);
-	m_pMaterial3 = materials->FindMaterial("effects/tractor_beam3", 0, 0, 0);
+	m_pPanelMaterial = materials->FindMaterial("particle/particle_ring_pulled_add_oriented", 0, 0, 0);
 }
 
 bool C_Trigger_TractorBeam::ShouldDraw(void)
@@ -715,3 +762,78 @@ bool C_Trigger_TractorBeam::HasAirDensity(void)
 {
 	return m_addAirDensity != 0.0;
 }
+
+void C_Trigger_TractorBeam::RecvProxy_Start(const CRecvProxyData* pData, void* pStruct, void* pOut)
+{
+	C_Trigger_TractorBeam* pTractorBeam = static_cast<C_Trigger_TractorBeam*>(pStruct);
+
+	Vector vStart = Vector(pData->m_Value.m_Vector[0], pData->m_Value.m_Vector[1], pData->m_Value.m_Vector[2]);
+
+	if (pTractorBeam->m_vStart != vStart)
+	{
+		pTractorBeam->m_vStart = vStart;
+		pTractorBeam->m_bRecreateParticles = true;
+		pTractorBeam->m_flStartTime = gpGlobals->curtime;
+	}
+}
+
+void C_Trigger_TractorBeam::RecvProxy_End(const CRecvProxyData* pData, void* pStruct, void* pOut)
+{
+	C_Trigger_TractorBeam* pTractorBeam = static_cast<C_Trigger_TractorBeam*>(pStruct);
+	Vector vEnd = Vector(pData->m_Value.m_Vector[0], pData->m_Value.m_Vector[1], pData->m_Value.m_Vector[2]);
+
+	if (pTractorBeam->m_vEnd != vEnd)
+	{
+		Vector vOldDiff = pTractorBeam->m_vEnd - pTractorBeam->m_vStart;
+		float fOldLength = VectorNormalize(vOldDiff);
+
+		Vector vNewDiff = vEnd - pTractorBeam->m_vStart;
+		float fNewLength = VectorNormalize(vNewDiff);
+
+		if (fabs(vOldDiff.x - vNewDiff.x) > 0.1 || fabs(vOldDiff.y - vNewDiff.y) > 0.1 || fabs(vOldDiff.z - vNewDiff.z) > 0.1)
+		{
+			pTractorBeam->m_flStartTime = gpGlobals->curtime;
+		}
+		else if (fNewLength > 0.0)
+		{
+			pTractorBeam->m_flStartTime = gpGlobals->curtime
+				- ((((((gpGlobals->curtime
+					- pTractorBeam->m_flStartTime)
+					+ (gpGlobals->curtime
+						- pTractorBeam->m_flStartTime))
+					+ 0.0)
+					* fOldLength)
+					/ fNewLength)
+					* 0.5);
+		}
+
+		pTractorBeam->m_vEnd = vEnd;
+		pTractorBeam->m_bRecreateParticles = true;
+	}
+}
+
+// Tractor Beam Proxy
+
+bool CTractorBeamProxy::Init(IMaterial* pMaterial, KeyValues* pKeyValues)
+{
+	// This doesn't really need to exist, but the decompiler indicates it might have
+	return CResultProxy::Init(pMaterial, pKeyValues);
+}
+
+void CTractorBeamProxy::OnBind(void* pC_BaseEntity)
+{
+	if (!pC_BaseEntity)
+		return;
+
+	C_BaseEntity* pEntity = BindArgToEntity(pC_BaseEntity);
+	if (!pEntity)
+		return;
+
+	C_Trigger_TractorBeam* pTractorBeam = dynamic_cast<C_Trigger_TractorBeam*>(pEntity);
+	if (!pTractorBeam)
+		return;
+
+	SetFloatResult(pTractorBeam->GetLinearForce() / 512);
+}
+
+EXPOSE_INTERFACE(CTractorBeamProxy, IMaterialProxy, "TractorBeam" IMATERIAL_PROXY_INTERFACE_VERSION);
