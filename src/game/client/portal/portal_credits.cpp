@@ -17,6 +17,9 @@
 #include <vgui/ILocalize.h>
 #include "KeyValues.h"
 #include "filesystem.h"
+#ifdef PORTAL
+#include "portal_shareddefs.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -41,7 +44,7 @@ struct portalcreditname_t
 };
 
 #define CREDITS_FILE "scripts/credits.txt"
-#define CREDITS_FILE_PORTAL "scripts/credits.txt"
+#define CREDITS_FILE_PORTAL "scripts/credits_portal.txt"
 
 enum
 {
@@ -158,6 +161,7 @@ private:
 	float m_flNameCharTime;
 	float m_flScrollCreditsStart;
 	float m_flSongStartTime;
+	char  m_szSongFile[256];
 
 
 	//Screen adjustment properties 
@@ -190,10 +194,15 @@ void CHudPortalCredits::PrepareCredits( const char *pKeyName )
 	Clear();
 
 	KeyValues *pKV= new KeyValues( "CreditsFile" );
-
+#ifdef PORTAL
+	const char* pszCreditsFile = g_MapInfo.GetCreditsFile();
+#else
+	const char* pszCreditsFile = CREDITS_FILE;
+#endif
+	
 	if (m_iCreditsType == CREDITS_OUTRO_PORTAL)
 	{
-		if ( !pKV->LoadFromFile( filesystem, CREDITS_FILE_PORTAL, "MOD" ) )
+		if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "MOD" ) )
 		{
 			pKV->deleteThis();
 	
@@ -203,7 +212,7 @@ void CHudPortalCredits::PrepareCredits( const char *pKeyName )
 	}
 	else
 	{
-		if ( !pKV->LoadFromFile( filesystem, CREDITS_FILE, "MOD" ) )
+		if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "MOD" ) )
 		{
 			pKV->deleteThis();
 	
@@ -493,6 +502,11 @@ void CHudPortalCredits::ReadParams( KeyValues *pKeyValue )
 
 	m_flScrollCreditsStart = pKeyValue->GetFloat( "scrollcreditsstart", 6 );
 	m_flSongStartTime = pKeyValue->GetFloat( "songstarttime", 6.85 );
+	V_strcpy_safe( m_szSongFile, pKeyValue->GetString( "songfile", "music/portal_still_alive.mp3" ) );
+	if ( m_szSongFile[0] == '\0' )
+	{
+		V_strcpy_safe( m_szSongFile, "music/portal_still_alive.mp3" );
+	}
 
 	m_iScreenXOffset = pKeyValue->GetInt( "screenxoffset", 0 );
 	m_iScreenYOffset = pKeyValue->GetInt( "screenyoffset", 0 );
@@ -904,7 +918,7 @@ void CHudPortalCredits::DrawPortalOutroCreditsLyrics( void )
 
 	if (m_bStartSong && flCurTime>= m_flSongStartTime)
 	{
-		surface()->PlaySound( "music/portal_still_alive.mp3" );
+		surface()->PlaySound( m_szSongFile );
 		m_bStartSong=false;
 		//engine->ClientCmd( "play music/portal_still_alive.mp3" );
 	}
