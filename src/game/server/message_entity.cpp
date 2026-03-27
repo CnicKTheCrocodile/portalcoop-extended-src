@@ -118,23 +118,21 @@ void CMessageEntity::Think( void )
 {
 	SetNextThink( gpGlobals->curtime + 0.1f );
 
-	// check for player distance
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-	if ( !pPlayer || ( pPlayer->GetFlags() & FL_NOTARGET ) )
-		return;
-
-	Vector worldTargetPosition = pPlayer->EyePosition();
-
-	// bail if player is too far away
-	if ( (worldTargetPosition - GetAbsOrigin()).Length() > m_radius )
+	// Dedicated servers don't have a local player, so check all active players.
+	m_drawText = false;
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
 	{
-		m_drawText = false;
-		return;
-	}
+		CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
+		if ( !pPlayer || ( pPlayer->GetFlags() & FL_NOTARGET ) )
+			continue;
 
-	// turn on text
-	m_drawText = true;
+		Vector worldTargetPosition = pPlayer->EyePosition();
+		if ( ( worldTargetPosition - GetAbsOrigin() ).Length() <= m_radius )
+		{
+			m_drawText = true;
+			break;
+		}
+	}
 }
 	
 //-------------------------------------------
