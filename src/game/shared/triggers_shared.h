@@ -1,4 +1,4 @@
-//====== Copyright © 1996-2005, Valve Corporation, All rights reserved. =======
+//====== Copyright ï¿½ 1996-2005, Valve Corporation, All rights reserved. =======
 //
 // Purpose: 
 //
@@ -65,7 +65,7 @@ public:
 	void InitTrigger( void );
 
 	void Enable( void );
-	void Disable( void );
+	virtual void Disable( void );
 	void Spawn( void );
 	void UpdateOnRemove( void );
 	void TouchTest(  void );

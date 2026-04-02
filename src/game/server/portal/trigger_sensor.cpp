@@ -23,6 +23,7 @@ public:
 	CTriggerSensor();
 
 	void Spawn( void );
+	virtual void Disable( void );
 
 	void StartTouch( CBaseEntity *pOther );
 	void EndTouch( CBaseEntity *pOther );
@@ -40,6 +41,9 @@ private:
 	COutputEvent m_OnActivate;
 	COutputEvent m_OnDeactivate;
 
+	COutputEvent m_OnPassForward;
+	COutputEvent m_OnPassBackward;
+
 	CUtlVector< TouchingEntities_t > m_SensorEntities;
 };
 
@@ -52,6 +56,8 @@ BEGIN_DATADESC( CTriggerSensor )
 
 	DEFINE_OUTPUT( m_OnActivate, "OnActivate" ),
 	DEFINE_OUTPUT( m_OnDeactivate, "OnDeactivate" ),
+	DEFINE_OUTPUT( m_OnPassForward, "OnPassForward" ),
+	DEFINE_OUTPUT( m_OnPassBackward, "OnPassBackward" ),
 
 	DEFINE_INPUTFUNC( FIELD_VOID, "Activate", InputActivate ),
 	DEFINE_INPUTFUNC( FIELD_VOID, "Deactivate", InputDeactivate ),
@@ -67,6 +73,12 @@ void CTriggerSensor::Spawn( void )
 {
 	InitTrigger();
 	BaseClass::Spawn();
+}
+
+void CTriggerSensor::Disable( void )
+{
+	m_SensorEntities.Purge();
+	BaseClass::Disable();
 }
 
 bool CTriggerSensor::IsBehindTrigger( CBaseEntity *pOther )
@@ -108,7 +120,8 @@ void CTriggerSensor::EndTouch( CBaseEntity *pOther )
 		return;
 
 	TouchingEntities_t *touching = NULL;
-	for ( int i = 0; i < m_SensorEntities.Count(); ++i )
+	int i;
+	for ( i = 0; i < m_SensorEntities.Count(); ++i )
 	{
 		if ( pOther == m_SensorEntities[i].hEntity )
 		{
@@ -132,25 +145,26 @@ void CTriggerSensor::EndTouch( CBaseEntity *pOther )
 
 	if ( bToggleState )
 	{
-		m_bActivated = !m_bActivated;
-		if ( m_bActivated )
+		if ( touching->bBehind )
 		{
-			m_OnActivate.FireOutput( pOther, pOther );
+			m_OnPassForward.FireOutput( pOther, this );
 		}
 		else
 		{
-			m_OnDeactivate.FireOutput( pOther, pOther );
+			m_OnPassBackward.FireOutput( pOther, this );
 		}
-	}
-	
-	for ( int i = 0; i < m_SensorEntities.Count(); ++i )
-	{
-		if ( pOther == m_SensorEntities[i].hEntity )
+		m_bActivated = !m_bActivated;
+		if ( m_bActivated )
 		{
-			m_SensorEntities.Remove( i );
-			break;
+			m_OnActivate.FireOutput( pOther, this );
+		}
+		else
+		{
+			m_OnDeactivate.FireOutput( pOther, this );
 		}
 	}
+
+	m_SensorEntities.Remove( i );
 }
 
 void CTriggerSensor::InputActivate( inputdata_t &inputdata )
