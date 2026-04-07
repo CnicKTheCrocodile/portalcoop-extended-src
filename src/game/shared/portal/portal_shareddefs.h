@@ -94,14 +94,15 @@ enum PortalColorSet_t
 	PORTAL_COLOR_SET_BLUE_ORANGE,
 	PORTAL_COLOR_SET_LIGHTBLUE_PURPLE,
 	PORTAL_COLOR_SET_YELLOW_RED,
-	PORTAL_COLOR_SET_GREEN_PINK, // The last "real" color set
+	PORTAL_COLOR_SET_GREEN_PINK,
+	PORTAL_COLOR_SET_WHITE_BLACK, // The last "real" color set
 
 	// Not a real color set
 	PORTAL_COLOR_SET_OBSERVER,
 };
 
 #define PORTAL_COLOR_SET_DEFAULT PORTAL_COLOR_SET_BLUE_ORANGE
-#define PORTAL_COLOR_SET_LAST PORTAL_COLOR_SET_GREEN_PINK
+#define PORTAL_COLOR_SET_LAST PORTAL_COLOR_SET_WHITE_BLACK
 
 #define PORTAL_COLOR_ORANGE Color(255,160,32,255)
 #define PORTAL_COLOR_BLUE Color(64,160,255,255)
@@ -115,6 +116,15 @@ enum PortalColorSet_t
 #define PORTAL_COLOR_GREEN Color(0,255,0,255)
 #define PORTAL_COLOR_PINK Color(255,0,255,255)
 
+#define PORTAL_COLOR_WHITE Color(255,255,255,255)
+#define PORTAL_COLOR_BLACK Color(50,50,50,255)
+
+#define PLAYER1_COLOR Color(64,160,255,255)
+#define PLAYER2_COLOR Color(255,160,32,255)
+#define PLAYER3_COLOR Color(0,255,0,255)
+#define PLAYER4_COLOR Color(255,255,255,255)
+#define PLAYER_DEFAULT_COLOR Color(100,100,100,255)
+
 #define MAX_MAPSET_LENGTH 16
 #define MAX_MAPSET_TITLE_LENGTH 32
 
@@ -125,6 +135,21 @@ enum PortalColorSet_t
 
 // ConVar Length divided by the ID and delimiter
 #define MAX_NETWORKED_MAPSETS MAX_USER_CONVAR_LENGTH / (MAPSET_ID_LENGTH+1)
+
+// per-player colors (can be expanded as needed)
+#define PLAYER_COLOR(i) \
+    ((i) == 1 ? PLAYER1_COLOR : \
+     (i) == 2 ? PLAYER2_COLOR : \
+     (i) == 3 ? PLAYER3_COLOR : \
+     (i) == 4 ? PLAYER4_COLOR : \
+                 PLAYER_DEFAULT_COLOR)
+
+// helper to obtain a Color for a player index; returns PLAYER_DEFAULT_COLOR when
+// the index doesn't match a predefined slot. Use throughout the UI instead of
+// hardcoding portal color sets.
+Color GetPlayerColor(int iPlayer);
+// converts the player colour into a normalized vectorspace for glow effects
+Vector GetPlayerGlowColor(int iPlayer);
 
 PortalColorSet_t ConvertLinkageIDToColorSet( int iPortalLinkageID );
 PortalColorSet_t GetColorSetForPlayer( int iPlayer );
@@ -183,6 +208,7 @@ bool PlayerShouldPlay( int index );
 
 bool Map_Is2Player( const char *pMapName );
 bool Map_Is3Player( const char *pMapName );
+bool Map_Is4Player( const char *pMapName );
 
 inline bool Map_IsNormal( const char *pMapName )
 {
