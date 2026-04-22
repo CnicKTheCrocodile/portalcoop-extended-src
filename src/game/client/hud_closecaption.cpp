@@ -2779,7 +2779,7 @@ void CHudCloseCaption::RemoveCaptionDictionary( const CUtlSymbol &dbFileSymbol )
 	}
 }
 #ifdef PORTAL
-static void LoadMapSetCaptionsLocalization( const char *pFileName, void *pData )
+static bool LoadMapSetCaptionsLocalization( const char *pFileName, void *pData )
 {
 	const char* captiontemplate = "closecaption_%language%.txt";
 	// Load the sounds
@@ -2790,9 +2790,11 @@ static void LoadMapSetCaptionsLocalization( const char *pFileName, void *pData )
 	{	
 		g_pVGuiLocalize->AddFile( manifestfile, "GAME", true );
 	}
+
+	return false;
 }
 
-static void LoadMapSetCaptionsFile( const char *pFileName, void *pData )
+static bool LoadMapSetCaptionsFile( const char *pFileName, void *pData )
 {
 	const char* captiontemplate = "closecaption_%language%.txt";
 	// Load the sounds
@@ -2800,6 +2802,8 @@ static void LoadMapSetCaptionsFile( const char *pFileName, void *pData )
 	Q_snprintf( manifestfile, sizeof( manifestfile ), "%s/%s", pFileName, captiontemplate );
 
 	g_pHudCloseCaption->AddCustomCaptionFile( manifestfile, g_CloseCaptionFileNames );
+
+	return false;
 }
 void CHudCloseCaption::AddCustomCaptionsLocalizationFromMapSets( void )
 {
