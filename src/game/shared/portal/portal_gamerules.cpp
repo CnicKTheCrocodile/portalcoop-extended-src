@@ -50,8 +50,8 @@ extern void ResetPortalPlayerData( void );
 extern ConVar physcannon_mega_enabled;
 #ifdef GAME_DLL
 ConVar sv_spawn_with_suit( "sv_spawn_with_suit", "0", FCVAR_CHEAT, "Sets whether or not players should spawn with the HEV suit" );
-ConVar sv_portalgun_spawn( "sv_portalgun_spawn", "0", FCVAR_CHEAT, "Sets if the player should spawn with the portalgun" );
-ConVar sv_portalgun_color( "sv_portalgun_color", "2", FCVAR_CHEAT, "Sets what portalgun colors players spawn with. 0 = Primary, 1 = Secondary, 2 = Both" );
+//ConVar sv_portalgun_spawn( "sv_portalgun_spawn", "0", FCVAR_CHEAT, "Sets if the player should spawn with the portalgun" );
+//ConVar sv_portalgun_color( "sv_portalgun_color", "2", FCVAR_CHEAT, "Sets what portalgun colors players spawn with. 0 = Primary, 1 = Secondary, 2 = Both" );
 #endif
 
 ConVar pcoop_paused( "pcoop_paused", "0", FCVAR_REPLICATED | FCVAR_HIDDEN );
@@ -460,6 +460,7 @@ const char *CPortalGameRules::GetGameDescription( void )
 		if ( pPortalPlayer->WantsToBeObserver() )
 			return;
 
+		/*
 		if (sv_portalgun_spawn.GetBool())
 		{
 			CWeaponPortalgun *pPortalgun = (CWeaponPortalgun*)pPlayer->GiveNamedItem("weapon_portalgun");
@@ -488,7 +489,7 @@ const char *CPortalGameRules::GetGameDescription( void )
 			}
 		}
 		else
-		{
+		{*/
 			if ( pPortalPlayer->m_PortalGunSpawnInfo.m_bSpawnWithPortalgun )
 			{
 				CWeaponPortalgun *pPortalgun = (CWeaponPortalgun *)pPlayer->GiveNamedItem( "weapon_portalgun" );
@@ -504,7 +505,7 @@ const char *CPortalGameRules::GetGameDescription( void )
 					pPortalgun->m_bCanFirePortal1 = pPortalPlayer->m_PortalGunSpawnInfo.m_bCanFirePortal1;
 					pPortalgun->m_bCanFirePortal2 = pPortalPlayer->m_PortalGunSpawnInfo.m_bCanFirePortal2;
 				}
-			}
+			//}
 		}
 
 		if (sv_spawn_with_suit.GetBool())

@@ -95,10 +95,92 @@ CMapInfo::CMapInfo()
 	Reset();
 }
 
+static int ClampMapPortalGunSpawnFireMode( int iPortalFireMode )
+{
+	if ( iPortalFireMode < 0 )
+		return 0;
+
+	if ( iPortalFireMode > 2 )
+		return 2;
+
+	return iPortalFireMode;
+}
+
+static int ClampMapPortalGunSpawnID( int iPortalID )
+{
+	if ( iPortalID < 0 )
+		return 0;
+
+	return iPortalID;
+}
+
+static int ClampMapPortalGunOwnerPlayer( int iPlayerIndex )
+{
+	if ( iPlayerIndex < 0 )
+		return 0;
+
+	if ( iPlayerIndex > MAX_PLAYERS )
+		return MAX_PLAYERS;
+
+	return iPlayerIndex;
+}
+
+int CMapInfo::GetPortalGunSpawnID( int iPlayerIndex ) const
+{
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+		return 0;
+
+	return m_iPortalGunSpawnID[iPlayerIndex];
+}
+
+int CMapInfo::GetPortalGunOwnerPlayer( void ) const
+{
+	return m_iPortalGunOwnerPlayer;
+}
+
+void CMapInfo::SetPortalGunOwnerPlayer( int iPlayerIndex )
+{
+	m_iPortalGunOwnerPlayer = ClampMapPortalGunOwnerPlayer( iPlayerIndex );
+}
+
+bool CMapInfo::GetPortalGunSpawnEnabled( int iPlayerIndex ) const
+{
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+		return true;
+
+	return m_bPortalGunSpawnEnabled[iPlayerIndex];
+}
+
+int CMapInfo::GetPortalGunSpawnFireMode( int iPlayerIndex ) const
+{
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+		return 0;
+
+	return m_iPortalGunSpawnFireMode[iPlayerIndex];
+}
+
+void CMapInfo::SetPortalGunSpawnConfig( int iPlayerIndex, bool bSpawnWithPortalgun, int iPortalID, int iPortalFireMode )
+{
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+		return;
+
+	m_bPortalGunSpawnEnabled[iPlayerIndex] = bSpawnWithPortalgun;
+	m_iPortalGunSpawnID[iPlayerIndex] = ClampMapPortalGunSpawnID( iPortalID );
+	m_iPortalGunSpawnFireMode[iPlayerIndex] = ClampMapPortalGunSpawnFireMode( iPortalFireMode );
+}
+
 void CMapInfo::Reset( void )
 {
 	m_iRequiredPlayers = -1;
 	memset( m_szAssociatedMapSet, 0, sizeof( m_szAssociatedMapSet ) );
+	memset( m_szLoadedMapName, 0, sizeof( m_szLoadedMapName ) );
+	m_iPortalGunOwnerPlayer = 0;
+	for ( int i = 0; i < MAX_PLAYERS; ++i )
+	{
+		m_bPortalGunSpawnEnabled[i] = true;
+		m_iPortalGunSpawnID[i] = i + 1;
+		m_iPortalGunSpawnFireMode[i] = 0;
+	}
 #ifdef CLIENT_DLL
 	V_strcpy( m_szCreditsFile, "scripts/credits.txt" );
 #endif
@@ -178,6 +260,50 @@ public:
 
 CMapDataLoader g_MapDataLoader;
 
+static bool ParseMapPortalGunSpawnConfigString( const char *pszValue, int &iPortalID, int &iPortalFireMode )
+{
+	if ( !pszValue || !pszValue[0] )
+		return false;
+
+	const char *p = pszValue;
+	while ( *p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' )
+		++p;
+
+	if ( !*p )
+		return false;
+
+	iPortalID = Q_atoi( p );
+
+	while ( *p && *p != ' ' && *p != '\t' && *p != '\r' && *p != '\n' && *p != ',' && *p != ';' )
+		++p;
+
+	while ( *p == ' ' || *p == '\t' || *p == '\r' || *p == '\n' || *p == ',' || *p == ';' )
+		++p;
+
+	iPortalFireMode = *p ? Q_atoi( p ) : 0;
+	return true;
+}
+
+static bool ParseMapPortalGunSpawnConfigString( const char *pszValue, bool &bSpawnWithPortalgun, int &iPortalID, int &iPortalFireMode )
+{
+	if ( !pszValue || !pszValue[0] )
+		return false;
+
+	while ( *pszValue == ' ' || *pszValue == '\t' || *pszValue == '\r' || *pszValue == '\n' )
+		++pszValue;
+
+	if ( !Q_stricmp( pszValue, "off" ) )
+	{
+		bSpawnWithPortalgun = false;
+		iPortalID = 0;
+		iPortalFireMode = 0;
+		return true;
+	}
+
+	bSpawnWithPortalgun = true;
+	return ParseMapPortalGunSpawnConfigString( pszValue, iPortalID, iPortalFireMode );
+}
+
 void CMapDataLoader::LevelInitPreEntity()
 {
 #ifdef GAME_DLL
@@ -202,8 +328,10 @@ void CMapDataLoader::LevelInitPreEntity()
 	}
 
 	Msg("Map loaded: %s\n", pszMapName);
+	V_strcpy( g_MapInfo.m_szLoadedMapName, pszMapName );
 
 	g_MapInfo.m_iRequiredPlayers = pMapData->GetInt( "required_players", -1 );
+	g_MapInfo.SetPortalGunOwnerPlayer( pMapData->GetInt( "portalgun_owner", 0 ) );
 	const char *associated_mapset = pMapData->GetString( "associated_mapset", NULL );
 	if ( associated_mapset )
 	{
@@ -216,6 +344,20 @@ void CMapDataLoader::LevelInitPreEntity()
 #ifdef CLIENT_DLL
 	V_strcpy( g_MapInfo.m_szCreditsFile, pMapData->GetString( "credits_file", "scripts/credits.txt" ) );
 #endif
+
+	for ( int i = 0; i < MAX_PLAYERS; ++i )
+	{
+		char szKeyName[32];
+		Q_snprintf( szKeyName, sizeof( szKeyName ), "portalgun_spawn_player%i", i + 1 );
+
+		bool bSpawnWithPortalgun = true;
+		int iPortalID = i + 1;
+		int iPortalFireMode = 0;
+		if ( ParseMapPortalGunSpawnConfigString( pMapData->GetString( szKeyName, NULL ), bSpawnWithPortalgun, iPortalID, iPortalFireMode ) )
+		{
+			g_MapInfo.SetPortalGunSpawnConfig( i, bSpawnWithPortalgun, iPortalID, iPortalFireMode );
+		}
+	}
 
 	pMapData->deleteThis();
 }

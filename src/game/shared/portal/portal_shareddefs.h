@@ -186,6 +186,13 @@ public:
 
 	int GetRequiredPlayers() { return m_iRequiredPlayers; }
 	const char* GetAssociatedMapSet( void ) { return m_szAssociatedMapSet; }
+	const char* GetLoadedMapName( void ) const { return m_szLoadedMapName; }
+	int GetPortalGunOwnerPlayer( void ) const;
+	void SetPortalGunOwnerPlayer( int iPlayerIndex );
+	bool GetPortalGunSpawnEnabled( int iPlayerIndex ) const;
+	int GetPortalGunSpawnID( int iPlayerIndex ) const;
+	int GetPortalGunSpawnFireMode( int iPlayerIndex ) const;
+	void SetPortalGunSpawnConfig( int iPlayerIndex, bool bSpawnWithPortalgun, int iPortalID, int iPortalFireMode );
 #ifdef CLIENT_DLL
 	const char *GetCreditsFile( void ) { return m_szCreditsFile; }
 #endif
@@ -193,6 +200,11 @@ public:
 private:
 	int m_iRequiredPlayers;
 	char m_szAssociatedMapSet[MAX_MAPSET_LENGTH];
+	char m_szLoadedMapName[64];
+	int m_iPortalGunOwnerPlayer;
+	bool m_bPortalGunSpawnEnabled[MAX_PLAYERS];
+	int m_iPortalGunSpawnID[MAX_PLAYERS];
+	int m_iPortalGunSpawnFireMode[MAX_PLAYERS];
 #ifdef CLIENT_DLL
 	char m_szCreditsFile[64];
 #endif

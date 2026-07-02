@@ -151,6 +151,265 @@ CON_COMMAND( pcoop_visualize_spawns_toggle, "" )
 	}
 }
 
+ConVar pcoop_player_spawn_life( "pcoop_player_spawn_life", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "If set, dead players respawn near a living coop player." );
+ConVar pcoop_player_death_restart_map( "pcoop_player_death_restart_map", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "If set, the map reloads if all coop players are dead." );
+ConVar pcoop_portalgun_spawn_mapdata_enable( "pcoop_portalgun_spawn_mapdata_enable", "0", FCVAR_REPLICATED, "0=disabled, 1=players spawn with custom portal gun settings, 2=first portal gun pickup gives configured portal guns to the whole team and then switches to 1." );
+
+enum PCoopPortalFireMode_t
+{
+	PCOOP_PORTAL_FIRE_BOTH = 0,
+	PCOOP_PORTAL_FIRE_BLUE_ONLY = 1,
+	PCOOP_PORTAL_FIRE_ORANGE_ONLY = 2,
+};
+
+struct PCoopPortalGunSpawnConfig_t
+{
+	bool m_bSpawnWithPortalgun;
+	int m_iPortalID;
+	int m_iPortalFireMode;
+};
+
+static PCoopPortalGunSpawnConfig_t g_PCoopPortalGunSpawnConfig[MAX_PLAYERS];
+static int g_iPCoopSpawnNearPlayerTarget[MAX_PLAYERS];
+static bool g_bPCoopPortalGunSpawnConfigInitialized = false;
+bool g_bPCoopQueuedRestartOnDeath = false;
+static char g_szPCoopPortalGunSpawnConfigMapName[MAX_MAP_NAME] = "";
+
+static int PCoopClampPortalFireMode( int iPortalFireMode )
+{
+	if ( iPortalFireMode < PCOOP_PORTAL_FIRE_BOTH )
+		return PCOOP_PORTAL_FIRE_BOTH;
+
+	if ( iPortalFireMode > PCOOP_PORTAL_FIRE_ORANGE_ONLY )
+		return PCOOP_PORTAL_FIRE_ORANGE_ONLY;
+
+	return iPortalFireMode;
+}
+
+static void PCoopEnsurePortalGunSpawnConfigInitialized( void )
+{
+	if ( g_bPCoopPortalGunSpawnConfigInitialized )
+		return;
+
+	for ( int i = 0; i < MAX_PLAYERS; ++i )
+	{
+		g_PCoopPortalGunSpawnConfig[i].m_bSpawnWithPortalgun = true;
+		g_PCoopPortalGunSpawnConfig[i].m_iPortalID = i + 1;
+		g_PCoopPortalGunSpawnConfig[i].m_iPortalFireMode = PCOOP_PORTAL_FIRE_BOTH;
+		g_iPCoopSpawnNearPlayerTarget[i] = 0;
+	}
+
+	g_bPCoopPortalGunSpawnConfigInitialized = true;
+}
+
+static void PCoopSyncPortalGunSpawnConfigFromMapData( void )
+{
+	PCoopEnsurePortalGunSpawnConfigInitialized();
+
+	const char *pszLoadedMapName = g_MapInfo.GetLoadedMapName();
+	if ( !pszLoadedMapName || !pszLoadedMapName[0] )
+		return;
+
+	if ( !Q_stricmp( g_szPCoopPortalGunSpawnConfigMapName, pszLoadedMapName ) )
+		return;
+
+	for ( int i = 0; i < MAX_PLAYERS; ++i )
+	{
+		g_PCoopPortalGunSpawnConfig[i].m_bSpawnWithPortalgun = g_MapInfo.GetPortalGunSpawnEnabled( i );
+		g_PCoopPortalGunSpawnConfig[i].m_iPortalID = g_MapInfo.GetPortalGunSpawnID( i );
+		g_PCoopPortalGunSpawnConfig[i].m_iPortalFireMode = PCoopClampPortalFireMode( g_MapInfo.GetPortalGunSpawnFireMode( i ) );
+	}
+
+	Q_strncpy( g_szPCoopPortalGunSpawnConfigMapName, pszLoadedMapName, sizeof( g_szPCoopPortalGunSpawnConfigMapName ) );
+}
+
+static void PCoopApplyPortalFireModeToSpawnInfo( PortalGunSpawnInfo_t &info, int iPortalFireMode )
+{
+	iPortalFireMode = PCoopClampPortalFireMode( iPortalFireMode );
+
+	info.m_bSpawnWithPortalgun = true;
+	info.m_bCanFirePortal1 = ( iPortalFireMode != PCOOP_PORTAL_FIRE_ORANGE_ONLY );
+	info.m_bCanFirePortal2 = ( iPortalFireMode != PCOOP_PORTAL_FIRE_BLUE_ONLY );
+}
+
+static void PCoopApplyPortalGunSpawnStateToSpawnInfo( PortalGunSpawnInfo_t &info, bool bSpawnWithPortalgun, int iPortalFireMode )
+{
+	if ( !bSpawnWithPortalgun )
+	{
+		info.m_bSpawnWithPortalgun = false;
+		info.m_bCanFirePortal1 = false;
+		info.m_bCanFirePortal2 = false;
+		return;
+	}
+
+	PCoopApplyPortalFireModeToSpawnInfo( info, iPortalFireMode );
+}
+
+static void PCoopApplyPortalGunLinkageID( CWeaponPortalgun *pPortalgun, int iPortalID )
+{
+	if ( !pPortalgun )
+		return;
+
+	if ( iPortalID < 0 )
+		iPortalID = 0;
+
+	pPortalgun->m_iPortalLinkageGroupID = iPortalID;
+	pPortalgun->m_bForceAlwaysUseSetID = true;
+	pPortalgun->m_hPrimaryPortal = CProp_Portal::FindPortal( iPortalID, false, true );
+	pPortalgun->m_hSecondaryPortal = CProp_Portal::FindPortal( iPortalID, true, true );
+}
+
+static void PCoopApplyPortalGunConfigToPlayer( CPortal_Player *pPlayer )
+{
+	if ( !pPlayer )
+		return;
+
+	const int iPlayerIndex = pPlayer->entindex() - 1;
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+		return;
+
+	PCoopApplyPortalGunSpawnStateToSpawnInfo( pPlayer->m_PortalGunSpawnInfo, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalFireMode );
+	if ( !g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun )
+	{
+		return;
+	}
+
+	CWeaponPortalgun *pPortalgun = static_cast<CWeaponPortalgun*>( pPlayer->Weapon_OwnsThisType( "weapon_portalgun" ) );
+	if ( !pPortalgun )
+	{
+		pPortalgun = static_cast<CWeaponPortalgun*>( pPlayer->GiveNamedItem( "weapon_portalgun" ) );
+	}
+
+	if ( !pPortalgun )
+		return;
+
+	pPortalgun->m_bCanFirePortal1 = pPlayer->m_PortalGunSpawnInfo.m_bCanFirePortal1;
+	pPortalgun->m_bCanFirePortal2 = pPlayer->m_PortalGunSpawnInfo.m_bCanFirePortal2;
+	pPortalgun->SetLastFiredPortal( 0 );
+	PCoopApplyPortalGunLinkageID( pPortalgun, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalID );
+}
+
+static void PCoopSharePortalGunWithTeamFromPickup( void )
+{
+	PCoopSyncPortalGunSpawnConfigFromMapData();
+
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+	{
+		CPortal_Player *pPlayer = ToPortalPlayer( UTIL_PlayerByIndex( i ) );
+		if ( !pPlayer || pPlayer->IsObserver() )
+			continue;
+
+		if ( !g_PCoopPortalGunSpawnConfig[i - 1].m_bSpawnWithPortalgun )
+			continue;
+
+		PCoopApplyPortalGunConfigToPlayer( pPlayer );
+	}
+
+	pcoop_portalgun_spawn_mapdata_enable.SetValue( 1 );
+}
+
+static CPortal_Player *PCoopFindLivingPartner( int iSkipEntIndex )
+{
+	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+	{
+		if ( i == iSkipEntIndex )
+			continue;
+
+		CPortal_Player *pOtherPlayer = ToPortalPlayer( UTIL_PlayerByIndex( i ) );
+		if ( !pOtherPlayer || !pOtherPlayer->IsAlive() || pOtherPlayer->IsObserver() )
+			continue;
+
+		return pOtherPlayer;
+	}
+
+	return NULL;
+}
+
+static bool PCoopAnyLivingPlayerExcept( int iSkipEntIndex )
+{
+	return PCoopFindLivingPartner( iSkipEntIndex ) != NULL;
+}
+
+static bool PCoopMovePlayerNearLivingPartner( CPortal_Player *pPlayer, int iTargetEntIndex )
+{
+	if ( !pPlayer )
+		return false;
+
+	CPortal_Player *pTargetPlayer = ToPortalPlayer( UTIL_PlayerByIndex( iTargetEntIndex ) );
+	if ( !pTargetPlayer || pTargetPlayer == pPlayer || !pTargetPlayer->IsAlive() || pTargetPlayer->IsObserver() )
+		return false;
+
+	pPlayer->SetAbsOrigin( pTargetPlayer->GetAbsOrigin() );
+	pPlayer->SetAbsVelocity( vec3_origin );
+	return true;
+}
+
+static void PCoopSetPlayerPortalGunSpawnCommand( const CCommand &args, int iPlayerIndex, const char *pszCommandName )
+{
+	PCoopEnsurePortalGunSpawnConfigInitialized();
+	PCoopSyncPortalGunSpawnConfigFromMapData();
+
+	if ( iPlayerIndex < 0 || iPlayerIndex >= MAX_PLAYERS )
+	{
+		Warning( "%s: invalid player index %i\n", pszCommandName, iPlayerIndex + 1 );
+		return;
+	}
+
+	if ( args.ArgC() == 1 )
+	{
+		Msg( "Usage: %s <off | ID Portail (0+)> [Fired Portail: 0=2 portails, 1=bleu, 2=orange]\n", pszCommandName );
+		Msg( "Current: %s %s %i %i\n", pszCommandName, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun ? "on" : "off", g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalID, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalFireMode );
+		return;
+	}
+
+	if ( args.ArgC() == 2 && !Q_stricmp( args[1], "off" ) )
+	{
+		g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun = false;
+		g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalID = iPlayerIndex + 1;
+		g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalFireMode = PCOOP_PORTAL_FIRE_BOTH;
+		Msg( "%s set to off\n", pszCommandName );
+		return;
+	}
+
+	if ( args.ArgC() != 3 )
+	{
+		Warning( "Usage: %s <off | ID Portail (0+)> [Fired Portail: 0=2 portails, 1=bleu, 2=orange]\n", pszCommandName );
+		return;
+	}
+
+	int iPortalID = Q_atoi( args[1] );
+	int iPortalFireMode = PCoopClampPortalFireMode( Q_atoi( args[2] ) );
+
+	if ( iPortalID < 0 )
+		iPortalID = 0;
+
+	g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun = true;
+	g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalID = iPortalID;
+	g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalFireMode = iPortalFireMode;
+
+	Msg( "%s set to %i %i\n", pszCommandName, iPortalID, iPortalFireMode );
+}
+
+CON_COMMAND( pcoop_portalgun_spawn_player1, "Configure portal gun spawn for player slot 1." )
+{
+	PCoopSetPlayerPortalGunSpawnCommand( args, 0, "pcoop_portalgun_spawn_player1" );
+}
+
+CON_COMMAND( pcoop_portalgun_spawn_player2, "Configure portal gun spawn for player slot 2." )
+{
+	PCoopSetPlayerPortalGunSpawnCommand( args, 1, "pcoop_portalgun_spawn_player2" );
+}
+
+CON_COMMAND( pcoop_portalgun_spawn_player3, "Configure portal gun spawn for player slot 3." )
+{
+	PCoopSetPlayerPortalGunSpawnCommand( args, 2, "pcoop_portalgun_spawn_player3" );
+}
+
+CON_COMMAND( pcoop_portalgun_spawn_player4, "Configure portal gun spawn for player slot 4." )
+{
+	PCoopSetPlayerPortalGunSpawnCommand( args, 3, "pcoop_portalgun_spawn_player4" );
+}
+
 // -------------------------------------------------------------------------------- //
 // Player animation event. Sent to the client when a player fires, jumps, reloads, etc..
 // -------------------------------------------------------------------------------- //
@@ -500,10 +759,16 @@ PortalPlayerRestoreData g_PortalPlayerRestoreData[MAX_PLAYERS];
 
 void ResetPortalPlayerData( void )
 {
+	PCoopEnsurePortalGunSpawnConfigInitialized();
+	PCoopSyncPortalGunSpawnConfigFromMapData();
+
 	for ( int i = 0; i < gpGlobals->maxClients; ++i )
 	{
 		g_PortalPlayerRestoreData[i].Reset();
+		g_iPCoopSpawnNearPlayerTarget[i] = 0;
 	}
+
+	g_bPCoopQueuedRestartOnDeath = false;
 }
 
 void SavePortalPlayerData( CPortal_Player *pPlayer )
@@ -915,6 +1180,22 @@ const char *s_pHudHintContext = "HudHintContext";
 //-----------------------------------------------------------------------------
 void CPortal_Player::Spawn(void)
 {
+	PCoopEnsurePortalGunSpawnConfigInitialized();
+	PCoopSyncPortalGunSpawnConfigFromMapData();
+
+	const int iPlayerIndex = entindex() - 1;
+	const int iPortalGunSpawnMode = pcoop_portalgun_spawn_mapdata_enable.GetInt();
+	if ( iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS && !g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_bSpawnWithPortalgun )
+	{
+		m_PortalGunSpawnInfo.m_bSpawnWithPortalgun = false;
+		m_PortalGunSpawnInfo.m_bCanFirePortal1 = false;
+		m_PortalGunSpawnInfo.m_bCanFirePortal2 = false;
+	}
+	else if ( iPortalGunSpawnMode == 1 && iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS )
+	{
+		PCoopApplyPortalFireModeToSpawnInfo( m_PortalGunSpawnInfo, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalFireMode );
+	}
+
 	Vector vColor;
 	// use per-player colour instead of generic portal colour set
 	vColor = GetPlayerGlowColor( entindex() );
@@ -926,6 +1207,41 @@ void CPortal_Player::Spawn(void)
 	SetPlayerModel();
 
 	BaseClass::Spawn();
+
+	if ( pcoop_player_spawn_life.GetBool() && iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS )
+	{
+		const int iTargetEntIndex = g_iPCoopSpawnNearPlayerTarget[iPlayerIndex];
+		if ( iTargetEntIndex > 0 )
+		{
+			if ( !PCoopMovePlayerNearLivingPartner( this, iTargetEntIndex ) )
+			{
+				CPortal_Player *pFallbackTarget = PCoopFindLivingPartner( entindex() );
+				if ( pFallbackTarget )
+				{
+					PCoopMovePlayerNearLivingPartner( this, pFallbackTarget->entindex() );
+				}
+			}
+
+			g_iPCoopSpawnNearPlayerTarget[iPlayerIndex] = 0;
+		}
+	}
+
+	if ( iPortalGunSpawnMode == 1 && iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS )
+	{
+		CWeaponPortalgun *pPortalgun = static_cast<CWeaponPortalgun*>( Weapon_OwnsThisType( "weapon_portalgun" ) );
+		if ( !pPortalgun && m_PortalGunSpawnInfo.m_bSpawnWithPortalgun )
+		{
+			pPortalgun = static_cast<CWeaponPortalgun*>( GiveNamedItem( "weapon_portalgun" ) );
+		}
+
+		if ( pPortalgun )
+		{
+			pPortalgun->m_bCanFirePortal1 = m_PortalGunSpawnInfo.m_bCanFirePortal1;
+			pPortalgun->m_bCanFirePortal2 = m_PortalGunSpawnInfo.m_bCanFirePortal2;
+			pPortalgun->SetLastFiredPortal( 0 );
+			PCoopApplyPortalGunLinkageID( pPortalgun, g_PCoopPortalGunSpawnConfig[iPlayerIndex].m_iPortalID );
+		}
+	}
 	
 	ResetAnimation();
 
@@ -1652,6 +1968,17 @@ void CPortal_Player::PlayerDeathThink(void)
 		&& !(g_pGameRules->IsMultiplayer() && (gpGlobals->curtime > (m_flDeathTime + 5))))
 		return;
 
+	if ( pcoop_player_death_restart_map.GetBool() && !g_bPCoopQueuedRestartOnDeath )
+	{
+		if ( !PCoopAnyLivingPlayerExcept( entindex() ) )
+		{
+			g_bPCoopQueuedRestartOnDeath = true;
+			engine->ChangeLevel( gpGlobals->mapname.ToCStr(), NULL );
+			SetNextThink(TICK_NEVER_THINK);
+			return;
+		}
+	}
+
 	m_nButtons = 0;
 	m_iRespawnFrames = 0;
 
@@ -2027,6 +2354,11 @@ bool CPortal_Player::BumpWeapon(CBaseCombatWeapon* pWeapon)
 	if ( pPickupPortalgun && !PortalGameRules()->IsRestoringPlayer() )
 	{
 		ForceDropOfCarriedPhysObjects(GetPlayerHeldEntity(this));
+
+		if ( pcoop_portalgun_spawn_mapdata_enable.GetInt() == 2 )
+		{
+			PCoopSharePortalGunWithTeamFromPickup();
+		}
 	}
 
 	return true;
@@ -2519,6 +2851,21 @@ void CPortal_Player::Event_Killed(const CTakeDamageInfo& info)
 	m_lifeState = LIFE_DYING;
 	StopZooming();
 
+	const int iPlayerIndex = entindex() - 1;
+	if ( iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS )
+	{
+		g_iPCoopSpawnNearPlayerTarget[iPlayerIndex] = 0;
+
+		if ( pcoop_player_spawn_life.GetBool() )
+		{
+			CPortal_Player *pLivingPartner = PCoopFindLivingPartner( entindex() );
+			if ( pLivingPartner )
+			{
+				g_iPCoopSpawnNearPlayerTarget[iPlayerIndex] = pLivingPartner->entindex();
+			}
+		}
+	}
+
 	if (GetObserverTarget())
 	{
 		//StartReplayMode( 3, 3, GetObserverTarget()->entindex() );
@@ -2852,6 +3199,43 @@ void CPortal_Player::SetupVisibility(CBaseEntity* pViewEntity, unsigned char* pv
 
 CBaseEntity* CPortal_Player::EntSelectSpawnPoint(void)
 {
+	const int iPlayerIndex = entindex() - 1;
+	if ( pcoop_player_spawn_life.GetBool() && iPlayerIndex >= 0 && iPlayerIndex < MAX_PLAYERS )
+	{
+		const int iTargetPlayer = g_iPCoopSpawnNearPlayerTarget[iPlayerIndex];
+		CPortal_Player *pTargetPlayer = ToPortalPlayer( UTIL_PlayerByIndex( iTargetPlayer ) );
+		if ( !pTargetPlayer || !pTargetPlayer->IsAlive() || pTargetPlayer->IsObserver() )
+		{
+			pTargetPlayer = PCoopFindLivingPartner( entindex() );
+		}
+
+		if ( pTargetPlayer && pTargetPlayer->IsAlive() && !pTargetPlayer->IsObserver() )
+		{
+			CBaseEntity *pBestSpawn = NULL;
+			float flBestDistSqr = 1.0e30f;
+			CBaseEntity *pSearchEnt = NULL;
+
+			while ( ( pSearchEnt = gEntList.FindEntityByClassname( pSearchEnt, "info_player_portalcoop" ) ) != NULL )
+			{
+				CInfoPlayerPortalCoop *pCoopSpawn = static_cast<CInfoPlayerPortalCoop*>( pSearchEnt );
+				if ( !pCoopSpawn || !pCoopSpawn->CanSpawnOnMe( this ) )
+					continue;
+
+				float flDistSqr = ( pCoopSpawn->GetAbsOrigin() - pTargetPlayer->GetAbsOrigin() ).LengthSqr();
+				if ( flDistSqr < flBestDistSqr )
+				{
+					flBestDistSqr = flDistSqr;
+					pBestSpawn = pCoopSpawn;
+				}
+			}
+
+			if ( pBestSpawn )
+			{
+				return pBestSpawn;
+			}
+		}
+	}
+
 	CBaseEntity *pEntity = NULL;
 	while ( ( pEntity = gEntList.FindEntityByClassname( pEntity, "info_player_portalcoop" ) ) != NULL )
 	{

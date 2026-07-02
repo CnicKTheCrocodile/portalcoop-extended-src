@@ -26,6 +26,9 @@
 
 void ClientPutInServer( edict_t *pEdict, const char *playername );
 void Bot_Think( CPortal_Player *pBot );
+extern void respawn( CBaseEntity *pEdict, bool fCopyCorpse );
+extern bool g_bPCoopQueuedRestartOnDeath;
+extern ConVar pcoop_player_death_restart_map;
 
 ConVar bot_forcefireweapon( "bot_forcefireweapon", "", 0, "Force bots with the specified weapon to fire." );
 ConVar bot_forceattack2( "bot_forceattack2", "0", 0, "When firing, use attack2." );
@@ -455,13 +458,38 @@ void Bot_Think( CPortal_Player *pBot )
 		// Wait for Reinforcement wave
 		if ( !pBot->IsAlive() )
 		{
+			if ( pcoop_player_death_restart_map.GetBool() && !g_bPCoopQueuedRestartOnDeath )
+			{
+				bool bAnyLivingPlayer = false;
+				for ( int i = 1; i <= gpGlobals->maxClients; ++i )
+				{
+					CPortal_Player *pOtherPlayer = ToPortalPlayer( UTIL_PlayerByIndex( i ) );
+					if ( pOtherPlayer && pOtherPlayer->IsAlive() && !pOtherPlayer->IsObserver() )
+					{
+						bAnyLivingPlayer = true;
+						break;
+					}
+				}
+
+				if ( !bAnyLivingPlayer )
+				{
+					g_bPCoopQueuedRestartOnDeath = true;
+					engine->ChangeLevel( gpGlobals->mapname.ToCStr(), NULL );
+					botdata->m_bWasDead = false;
+					botdata->m_flDeadTime = 0.0f;
+					return;
+				}
+			}
+
 			if ( botdata->m_bWasDead )
 			{
 				// Wait for a few seconds before respawning.
 				if ( gpGlobals->curtime - botdata->m_flDeadTime > 3 )
 				{
-					// Respawn the bot
-					buttons |= IN_JUMP;
+					// Force respawn for fake clients; input-based respawn can fail for bots.
+					respawn( pBot, false );
+					botdata->m_bWasDead = false;
+					botdata->m_flDeadTime = 0.0f;
 				}
 			}
 			else

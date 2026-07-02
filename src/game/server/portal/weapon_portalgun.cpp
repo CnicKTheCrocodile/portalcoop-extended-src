@@ -90,6 +90,12 @@ void CWeaponPortalgun::Spawn( void )
 
 	BaseClass::Spawn();
 
+	const int iMapPortalGunOwner = g_MapInfo.GetPortalGunOwnerPlayer();
+	if ( iMapPortalGunOwner > 0 )
+	{
+		m_iValidPlayer = iMapPortalGunOwner;
+	}
+
 	m_bCanAttack = true;
 	
 	SetThink( &CWeaponPortalgun::Think );
