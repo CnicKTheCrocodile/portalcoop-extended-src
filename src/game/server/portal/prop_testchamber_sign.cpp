@@ -97,7 +97,7 @@ CPropTestchamberSign::CPropTestchamberSign()
 	for ( int i = 0; i < NUM_HAZARD_ICONS; ++i )
 		m_bIconActive.Set( i, false );
 
-	m_bLegacyTotalChambers = true;
+	m_bLegacyTotalChambers = false; // true by default
 }
 
 void CPropTestchamberSign::Spawn()
