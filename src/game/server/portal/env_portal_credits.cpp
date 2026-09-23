@@ -35,7 +35,6 @@ public:
 	virtual void Precache();
 	virtual void OnRestore();
 private:
-	void		SendCreditsMessage( int nCreditsType );
 
 	void		RollOutroCredits();
 	void		RollPortalOutroCredits();
@@ -66,7 +65,7 @@ void CPortalCredits::Spawn( void )
 
 static void CreditsDone_f( void )
 {
-	CPortalCredits *pCredits = (CPortalCredits*)gEntList.FindEntityByClassname( NULL, "env_portal_credits" );
+	CPortalCredits *pCredits = (CPortalCredits*)gEntList.FindEntityByClassname( NULL, "env_credits" );
 
 	if ( pCredits )
 	{
@@ -101,26 +100,14 @@ void CPortalCredits::OnRestore()
 void CPortalCredits::RollOutroCredits()
 {
 	sv_unlockedchapters.SetValue( "15" );
-	SendCreditsMessage( 3 );
-}
+	
+	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
-void CPortalCredits::SendCreditsMessage( int nCreditsType )
-{
-	for ( int i = 1; i <= gpGlobals->maxClients; ++i )
-	{
-		CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
-		if ( !pPlayer || !pPlayer->IsConnected() )
-		{
-			continue;
-		}
+	CReliableBroadcastRecipientFilter user;
 
-		CSingleUserRecipientFilter user( pPlayer );
-		user.MakeReliable();
-
-		UserMessageBegin( user, "CreditsPortalMsg" );
-			WRITE_BYTE( nCreditsType );
-		MessageEnd();
-	}
+	UserMessageBegin( user, "CreditsPortalMsg" );
+		WRITE_BYTE( 3 );
+	MessageEnd();
 }
 
 void CPortalCredits::InputRollOutroCredits( inputdata_t &inputdata )
@@ -136,7 +123,12 @@ void CPortalCredits::InputRollOutroCredits( inputdata_t &inputdata )
 void CPortalCredits::RollPortalOutroCredits()
 {
 	sv_unlockedchapters.SetValue( "15" );
-	SendCreditsMessage( 4 );
+	
+	CReliableBroadcastRecipientFilter user;
+
+	UserMessageBegin( user, "CreditsPortalMsg" );
+		WRITE_BYTE( 4 );
+	MessageEnd();
 }
 
 void CPortalCredits::InputRollPortalOutroCredits( inputdata_t &inputdata )
@@ -152,27 +144,21 @@ void CPortalCredits::InputRollPortalOutroCredits( inputdata_t &inputdata )
 
 void CPortalCredits::InputShowLogo( inputdata_t &inputdata )
 {
+	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+
+	CReliableBroadcastRecipientFilter user;
+
 	if ( m_flLogoLength )
 	{
-		for ( int i = 1; i <= gpGlobals->maxClients; ++i )
-		{
-			CBasePlayer *pPlayer = UTIL_PlayerByIndex( i );
-			if ( !pPlayer || !pPlayer->IsConnected() )
-			{
-				continue;
-			}
-
-			CSingleUserRecipientFilter user( pPlayer );
-			user.MakeReliable();
-
-			UserMessageBegin( user, "LogoTimeMsg" );
-				WRITE_FLOAT( m_flLogoLength );
-			MessageEnd();
-		}
+		UserMessageBegin( user, "LogoTimeMsg" );
+			WRITE_FLOAT( m_flLogoLength );
+		MessageEnd();
 	}
 	else
 	{
-		SendCreditsMessage( 1 );
+		UserMessageBegin( user, "CreditsPortalMsg" );
+			WRITE_BYTE( 1 );
+		MessageEnd();
 	}
 }
 
@@ -184,5 +170,11 @@ void CPortalCredits::InputSetLogoLength( inputdata_t &inputdata )
 
 void CPortalCredits::InputRollCredits( inputdata_t &inputdata )
 {
-	SendCreditsMessage( 2 );
+	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+
+	CReliableBroadcastRecipientFilter user;
+
+	UserMessageBegin( user, "CreditsPortalMsg" );
+		WRITE_BYTE( 2 );
+	MessageEnd();
 }

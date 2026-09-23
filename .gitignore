@@ -502,3 +502,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/src/enc_temp_folder

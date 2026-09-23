@@ -43,8 +43,8 @@ struct portalcreditname_t
 	int iSlot;
 };
 
-#define CREDITS_FILE "scripts/credits.txt"
-#define CREDITS_FILE_PORTAL "scripts/credits_portal.txt"
+//#define CREDITS_FILE "scripts/credits.txt"
+//#define CREDITS_FILE_PORTAL "scripts/credits_portal.txt"
 
 enum
 {
@@ -204,20 +204,26 @@ void CHudPortalCredits::PrepareCredits( const char *pKeyName )
 	{
 		if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "MOD" ) )
 		{
-			pKV->deleteThis();
+			if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "GAME" ) )
+			{
+				pKV->deleteThis();
 	
-			Assert( !"env_portal_credits couldn't be initialized!" );
-			return;
+				Assert( !"env_portal_credits couldn't be initialized!" );
+				return;
+			}
 		}
 	}
 	else
 	{
 		if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "MOD" ) )
 		{
-			pKV->deleteThis();
+			if ( !pKV->LoadFromFile( filesystem, pszCreditsFile, "GAME" ) )
+			{
+				pKV->deleteThis();
 	
-			Assert( !"env_portal_credits couldn't be initialized!" );
-			return;
+				Assert( !"env_portal_credits couldn't be initialized!" );
+				return;
+			}
 		}
 	}
 
@@ -596,7 +602,7 @@ void CHudPortalCredits::DrawOutroCreditsName( void )
 			pCredit->bActive = true;
 		}
 
-		Color cColor = m_cColor;
+		Color cColor = m_TextColor;
 
 		//HACKHACK
 		//Last one stays on screen and fades out
@@ -739,7 +745,7 @@ void CHudPortalCredits::DrawPortalOutroCreditsName( void )
 				pCredit->bActive = true;
 		}
 
-		Color cColor = m_cColor;
+		Color cColor = m_TextColor;
 
 		//HACKHACK
 		//Last one stays on screen and fades out
@@ -1209,7 +1215,7 @@ void CHudPortalCredits::DrawLogo( void )
 
 	int iFontTall = surface()->GetFontTall ( m_hTFont );
 
-	Color cColor = m_cColor;
+	Color cColor = m_TextColor;
 	cColor[3] = m_Alpha;
 				
 	surface()->DrawSetTextFont( m_hTFont );

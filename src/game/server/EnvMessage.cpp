@@ -163,8 +163,6 @@ public:
 
 	virtual void OnRestore();
 private:
-	void		SendCreditsMessage( CBasePlayer *pPlayer, int nCreditsType );
-
 
 	void		RollOutroCredits();
 
@@ -218,25 +216,11 @@ void CCredits::OnRestore()
 }
 
 void CCredits::RollOutroCredits()
-{
-	//sv_unlockedchapters.SetValue( "15" );
-	for (int i = 1; i <= gpGlobals->maxClients; ++i)
-	{
-		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
-		if (pPlayer)
-		{
-			SendCreditsMessage( pPlayer, 3 );
-		}
-	}
-}
-
-void CCredits::SendCreditsMessage( CBasePlayer *pPlayer, int nCreditsType )
-{
-	CSingleUserRecipientFilter user( pPlayer );
-	user.MakeReliable();
+{	
+	CReliableBroadcastRecipientFilter user;
 
 	UserMessageBegin( user, "CreditsMsg" );
-		WRITE_BYTE( nCreditsType );
+		WRITE_BYTE( 3 );
 	MessageEnd();
 }
 
@@ -252,25 +236,19 @@ void CCredits::InputRollOutroCredits( inputdata_t &inputdata )
 
 void CCredits::InputShowLogo( inputdata_t &inputdata )
 {
-	for (int i = 1; i <= gpGlobals->maxClients; ++i)
-	{
-		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
-		if ( pPlayer )
-		{
-			CSingleUserRecipientFilter user( pPlayer );
-			user.MakeReliable();
+	CReliableBroadcastRecipientFilter user;
 
-			if ( m_flLogoLength )
-			{
-				UserMessageBegin( user, "LogoTimeMsg" );
-					WRITE_FLOAT( m_flLogoLength );
-				MessageEnd();
-			}
-			else
-			{
-				SendCreditsMessage( pPlayer, 1 );
-			}
-		}
+	if ( m_flLogoLength )
+	{
+		UserMessageBegin( user, "LogoTimeMsg" );
+			WRITE_FLOAT( m_flLogoLength );
+		MessageEnd();
+	}
+	else
+	{
+		UserMessageBegin( user, "CreditsMsg" );
+			WRITE_BYTE( 1 );
+		MessageEnd();
 	}
 }
 
@@ -281,12 +259,9 @@ void CCredits::InputSetLogoLength( inputdata_t &inputdata )
 
 void CCredits::InputRollCredits( inputdata_t &inputdata )
 {
-	for (int i = 1; i <= gpGlobals->maxClients; ++i)
-	{
-		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
-		if (pPlayer)
-		{
-			SendCreditsMessage( pPlayer, 2 );
-		}
-	}
+	CReliableBroadcastRecipientFilter user;
+
+	UserMessageBegin( user, "CreditsMsg" );
+		WRITE_BYTE( 2 );
+	MessageEnd();
 }

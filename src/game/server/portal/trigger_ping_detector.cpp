@@ -12,6 +12,7 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#if !USE_PING_DETECTOR_WONDERLAND
 class CTriggerPingDetector : public CBaseTrigger, public CGameEventListener
 {
 public:
@@ -107,3 +108,4 @@ void CTriggerPingDetector::InputToggle( inputdata_t &inputdata )
 {
 	BaseClass::InputToggle( inputdata );
 }
+#endif

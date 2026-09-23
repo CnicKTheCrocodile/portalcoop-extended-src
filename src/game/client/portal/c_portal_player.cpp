@@ -1185,6 +1185,7 @@ void C_Portal_Player::Simulate( void )
 
 
 extern ConVar pcoop_avoidplayers;
+extern ConVar pcoop_avoidplayers_infinifling;
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -1455,16 +1456,89 @@ void C_Portal_Player::ForceDropOfCarriedPhysObjects(CBaseEntity* pOnlyIfHoldingT
 	BaseClass::ForceDropOfCarriedPhysObjects(pOnlyIfHoldingThis);
 }
 
-void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
+static void VelocityToMove( CUserCmd *pCmd, const Vector &vDirection, bool bOverrideMove = false, float flStrength = 1.0 )
 {
-	// Turn off the avoid player code.
-	if ( !pcoop_avoidplayers.GetBool() )
-		return;
+	QAngle vAngles = pCmd->viewangles;
+	vAngles.x = 0;
+	Vector currentdir;
+	Vector rightdir;
 
+	AngleVectors( vAngles, &currentdir, &rightdir, NULL );
+
+	float fwd = currentdir.Dot( vDirection );
+	float rt = rightdir.Dot( vDirection );
+
+	float forward = fwd * flStrength;
+	float side = rt * flStrength;
+
+	//Msg( "fwd: %f - rt: %f - forward: %f - side: %f\n", fwd, rt, forward, side );
+
+	if ( bOverrideMove )
+	{
+		pCmd->forwardmove = forward;
+		pCmd->sidemove = side;
+	}
+	else
+	{
+		pCmd->forwardmove += forward;
+		pCmd->sidemove += side;
+	}
+
+	// Clamp the move to within legal limits, preserving direction. This is a little
+	// complicated because we have different limits for forward, back, and side
+
+	//Msg( "PRECLAMP: forwardmove=%f, sidemove=%f\n", pCmd->forwardmove, pCmd->sidemove );
+
+	float flForwardScale = 1.0f;
+	if ( pCmd->forwardmove > fabs( cl_forwardspeed.GetFloat() ) )
+	{
+		flForwardScale = fabs( cl_forwardspeed.GetFloat() ) / pCmd->forwardmove;
+	}
+	else if ( pCmd->forwardmove < -fabs( cl_backspeed.GetFloat() ) )
+	{
+		flForwardScale = fabs( cl_backspeed.GetFloat() ) / fabs( pCmd->forwardmove );
+	}
+
+	float flSideScale = 1.0f;
+	if ( fabs( pCmd->sidemove ) > fabs( cl_sidespeed.GetFloat() ) )
+	{
+		flSideScale = fabs( cl_sidespeed.GetFloat() ) / fabs( pCmd->sidemove );
+	}
+
+	float flScale = min( flForwardScale, flSideScale );
+	pCmd->forwardmove *= flScale;
+	pCmd->sidemove *= flScale;
+
+	//Msg( "Pforwardmove=%f, sidemove=%f\n", pCmd->forwardmove, pCmd->sidemove );
+}
+
+void C_Portal_Player::HandleMoveMods( CUserCmd *pCmd )
+{
+	if ( pcoop_avoidplayers.GetBool() && AvoidPlayers( pCmd ) )
+	{
+		return;
+	}
+	
+#ifdef USE_CMD_FOR_PORTAL_FUNNEL
+	extern ConVar cl_player_funnel_into_portals;
+	if ( cl_player_funnel_into_portals.GetBool() )
+	{
+		FunnelIntoPortals( pCmd );
+	}
+#endif
+}
+
+bool C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
+{
 	// Don't test if the player doesn't exist or is dead.
 	if ( IsAlive() == false )
-		return;
-	
+		return false;
+
+	float flPushStrength = 0.0;
+	bool bOverrideMove = false;
+	bool bIsInterectingPortal = false;
+	Vector vecIntersectingPortal;
+
 	// Up vector.
 	static Vector vecUp( 0.0f, 0.0f, 1.0f );
 
@@ -1476,9 +1550,7 @@ void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 	VectorAdd( vecTFPlayerMin, vecTFPlayerCenter, vecTFPlayerMin );
 	VectorAdd( vecTFPlayerMax, vecTFPlayerCenter, vecTFPlayerMax );
 
-	// Find an intersecting player or object.
-	int nAvoidPlayerCount = 0;
-	C_Portal_Player *pAvoidPlayerList[MAX_PLAYERS];
+	// Find an intersecting player.
 
 	C_Portal_Player *pIntersectPlayer = NULL;
 	float flAvoidRadius = 0.0f;
@@ -1494,10 +1566,6 @@ void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 		// Is the avoid player me?
 		if ( pAvoidPlayer == this )
 			continue;
-
-		// Save as list to check against for objects.
-		pAvoidPlayerList[nAvoidPlayerCount] = pAvoidPlayer;
-		++nAvoidPlayerCount;
 
 		// Check to see if the avoid player is dormant.
 		if ( pAvoidPlayer->IsDormant() )
@@ -1536,7 +1604,95 @@ void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 		VectorAdd( vecAvoidMin, vecAvoidCenter, vecAvoidMin );
 		VectorAdd( vecAvoidMax, vecAvoidCenter, vecAvoidMax );
 
-		if ( IsBoxIntersectingBox( vecTFPlayerMin, vecTFPlayerMax, vecAvoidMin, vecAvoidMax ) )
+		bool bIsIntersecting = false;
+		if ( pcoop_avoidplayers_infinifling.GetBool() )
+		{
+			const float fling_test_speed = 200.0;
+			// Check for infinifling players, starting with velocity
+			const Vector &vecPlayerVelocity = GetAbsVelocity();
+			const Vector &vecAvoidVelocity = pAvoidPlayer->GetAbsVelocity();
+			if ( vecPlayerVelocity.z < -fling_test_speed && vecAvoidVelocity.z < -fling_test_speed // Must be falling at a fast enough speed
+				&& vecPlayerVelocity.z >= vecAvoidVelocity.z // The slower player gets pushed, but if they're equal, push em' both (doing >= because of negative velocity)
+				)			
+			{
+				// Allow this behavior if they're far enough from each other
+				if ( fabs( vecTFPlayerCenter.x - vecAvoidCenter.x ) < 80.0 &&
+					fabs( vecTFPlayerCenter.y - vecAvoidCenter.y ) < 80.0 &&
+					fabs( vecTFPlayerCenter.z - vecAvoidCenter.z ) < 320.0 )
+				{
+					for ( int i = 0; i < CProp_Portal_Shared::AllPortals.Count(); ++i )
+					{
+						C_Prop_Portal *pPortal = CProp_Portal_Shared::AllPortals[i];
+
+						// Don't run the exact same checks again (for perf)
+						if ( pPortal->m_bIsPortal2 )
+							continue;
+
+						if ( !pPortal->IsActivedAndLinked() )
+							continue;
+								
+						C_Prop_Portal *pLinked = pPortal->GetLinkedPortal();
+				
+						if ( (!pPortal->IsFloorPortal() || !pLinked->IsCeilingPortal()) &&
+							(!pPortal->IsCeilingPortal() || !pLinked->IsFloorPortal()) )
+						{
+							// Can't fling with wall portals.
+							continue;
+						}
+
+						// Next, see if they're facing each other.
+						Vector vToLinked = pPortal->m_ptOrigin - pLinked->m_ptOrigin;
+
+						/* Probably not a needed check, the floor & ceiling portal checks should do this already
+						Vector vToLinkedDir = vToLinked;
+						VectorNormalize(vToLinkedDir);
+						if ( DotProduct( pPortal->m_vForward, vToLinkedDir ) > 0 || DotProduct( pLinked->m_vForward, -vToLinkedDir ) > 0 )
+						{
+							// The portals must be facing each other
+							continue;
+						}
+						*/
+
+						float distToLinked = vToLinked.Length();
+						if ( distToLinked > 320.0 ) // If they're separated enough, allow it
+						{
+							continue;
+						}
+
+						const float portal_max_test_dist_sqr = 64 * 64;
+
+						Vector vecEndPoint = pPortal->m_ptOrigin + (pPortal->m_vForward * distToLinked);
+
+						float flDistToLinked = CalcDistanceToLineSegment( pLinked->m_ptOrigin, pPortal->m_ptOrigin, vecEndPoint );
+						if ( flDistToLinked > portal_max_test_dist_sqr )
+						{
+							// Too far from the linked portal
+							continue;
+						}
+				
+						CalcClosestPointOnLine( vecTFPlayerCenter, pPortal->m_ptOrigin, pLinked->m_ptOrigin, vecIntersectingPortal );
+						float flDistToPortalLine = vecIntersectingPortal.DistTo( vecTFPlayerCenter );
+						if ( flDistToPortalLine > portal_max_test_dist_sqr )
+						{
+							// Too far from the portal line
+							continue;
+						}
+
+						bIsInterectingPortal = true;
+						bOverrideMove = true;
+						bIsIntersecting = true;
+						flPushStrength = tf_max_separation_force.GetFloat(); // Push em back hard
+					}
+				}
+			}
+		}
+
+		if ( !bIsIntersecting && IsBoxIntersectingBox( vecTFPlayerMin, vecTFPlayerMax, vecAvoidMin, vecAvoidMax ) )
+		{
+			bIsIntersecting = true;
+		}
+		
+		if ( bIsIntersecting )
 		{
 			// Need to avoid this player.
 			if ( !pIntersectPlayer )
@@ -1550,30 +1706,36 @@ void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 	// Anything to avoid?
 	if ( !pIntersectPlayer)
 	{
-		return;
+		return false;
 	}
 
 	// Calculate the push strength and direction.
 	Vector vecDelta;
 
-	// Avoid a player - they have precedence.
-	if ( pIntersectPlayer )
+	if ( bIsInterectingPortal )
+	{
+		VectorSubtract( vecIntersectingPortal, vecTFPlayerCenter, vecDelta );
+	}
+	else // Avoid a player.
 	{
 		VectorSubtract( pIntersectPlayer->WorldSpaceCenter(), vecTFPlayerCenter, vecDelta );
-
-		Vector vRad = pIntersectPlayer->WorldAlignMaxs() - pIntersectPlayer->WorldAlignMins();
-		vRad.z = 0;
-
-		flAvoidRadius = vRad.Length();
 	}
 
-	float flPushStrength = RemapValClamped( vecDelta.Length(), flAvoidRadius, 0, 0, tf_max_separation_force.GetInt() ); //flPushScale;
+	Vector vRad = pIntersectPlayer->WorldAlignMaxs() - pIntersectPlayer->WorldAlignMins();
+	vRad.z = 0;
+
+	flAvoidRadius = vRad.Length();
+
+	if ( flPushStrength == 0.0 )
+	{
+		flPushStrength = RemapValClamped( vecDelta.Length(), flAvoidRadius, 0, 0, tf_max_separation_force.GetInt() ); // flPushScale
+	}
 
 	//Msg( "PushScale = %f\n", flPushStrength );
 
 	// Check to see if we have enough push strength to make a difference.
 	if ( flPushStrength < 0.01f )
-		return;
+		return false;
 
 	Vector vecPush;
 	if ( GetAbsVelocity().Length2DSqr() > 0.1f )
@@ -1619,55 +1781,143 @@ void C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 		VectorScale( vecSeparationVelocity, flMaxPlayerSpeed, vecSeparationVelocity );
 	}
 
-	QAngle vAngles = pCmd->viewangles;
-	vAngles.x = 0;
-	Vector currentdir;
-	Vector rightdir;
-
-	AngleVectors( vAngles, &currentdir, &rightdir, NULL );
 
 	Vector vDirection = vecSeparationVelocity;
-
 	VectorNormalize( vDirection );
 
-	float fwd = currentdir.Dot( vDirection );
-	float rt = rightdir.Dot( vDirection );
+	VelocityToMove( pCmd, vDirection, bOverrideMove, flPushStrength );
 
-	float forward = fwd * flPushStrength;
-	float side = rt * flPushStrength;
-
-	//Msg( "fwd: %f - rt: %f - forward: %f - side: %f\n", fwd, rt, forward, side );
-
-	pCmd->forwardmove	+= forward;
-	pCmd->sidemove		+= side;
-
-	// Clamp the move to within legal limits, preserving direction. This is a little
-	// complicated because we have different limits for forward, back, and side
-
-	//Msg( "PRECLAMP: forwardmove=%f, sidemove=%f\n", pCmd->forwardmove, pCmd->sidemove );
-
-	float flForwardScale = 1.0f;
-	if ( pCmd->forwardmove > fabs( cl_forwardspeed.GetFloat() ) )
-	{
-		flForwardScale = fabs( cl_forwardspeed.GetFloat() ) / pCmd->forwardmove;
-	}
-	else if ( pCmd->forwardmove < -fabs( cl_backspeed.GetFloat() ) )
-	{
-		flForwardScale = fabs( cl_backspeed.GetFloat() ) / fabs( pCmd->forwardmove );
-	}
-
-	float flSideScale = 1.0f;
-	if ( fabs( pCmd->sidemove ) > fabs( cl_sidespeed.GetFloat() ) )
-	{
-		flSideScale = fabs( cl_sidespeed.GetFloat() ) / fabs( pCmd->sidemove );
-	}
-
-	float flScale = min( flForwardScale, flSideScale );
-	pCmd->forwardmove *= flScale;
-	pCmd->sidemove *= flScale;
-
-	//Msg( "Pforwardmove=%f, sidemove=%f\n", pCmd->forwardmove, pCmd->sidemove );
+	return true;
 }
+
+#ifdef USE_CMD_FOR_PORTAL_FUNNEL
+#define PORTAL_FUNNEL_AMOUNT 6.0f
+void C_Portal_Player::FunnelIntoPortals( CUserCmd *pCmd )
+{
+	Vector		wishvel;
+	Vector		wishdir;
+	float		wishspeed;
+	Vector vDirection;
+	Vector forward, right, up;
+
+	vDirection.Init();
+
+	Vector vPlayerForward;
+	AngleVectors (pCmd->viewangles, &vPlayerForward, &right, &up);  // Determine movement angles
+
+	forward = vPlayerForward;
+
+	const Vector &vecAbsVelocity = GetAbsVelocity();
+	
+	// Copy movement amounts
+	float fmove = pCmd->forwardmove;
+	float smove = pCmd->sidemove;
+
+	// Zero out z components of movement vectors
+	forward[2] = 0;
+	right[2]   = 0;
+	VectorNormalize(forward);  // Normalize remainder of vectors
+	VectorNormalize(right);    // 
+
+	for (int i=0 ; i<2 ; i++)       // Determine x and y parts of velocity
+		wishvel[i] = forward[i]*fmove + right[i]*smove;
+	wishvel[2] = 0;             // Zero out z part of velocity
+
+	VectorCopy (wishvel, wishdir);   // Determine maginitude of speed of move
+
+	//
+	// Don't let the player screw their fling because of adjusting into a floor portal
+	//
+	if ( vecAbsVelocity[ 0 ] * vecAbsVelocity[ 0 ] + vecAbsVelocity[ 1 ] * vecAbsVelocity[ 1 ] > MIN_FLING_SPEED * MIN_FLING_SPEED )
+	{
+		if ( vecAbsVelocity[ 0 ] > MIN_FLING_SPEED * 0.5f && wishdir[ 0 ] < 0.0f )
+			wishdir[ 0 ] = 0.0f;
+		else if ( vecAbsVelocity[ 0 ] < -MIN_FLING_SPEED * 0.5f && wishdir[ 0 ] > 0.0f )
+			wishdir[ 0 ] = 0.0f;
+
+		if ( vecAbsVelocity[ 1 ] > MIN_FLING_SPEED * 0.5f && wishdir[ 1 ] < 0.0f )
+			wishdir[ 1 ] = 0.0f;
+		else if ( vecAbsVelocity[ 1 ] < -MIN_FLING_SPEED * 0.5f && wishdir[ 1 ] > 0.0f )
+			wishdir[ 1 ] = 0.0f;
+	}
+	else
+	{
+		int iPortalCount = CProp_Portal_Shared::AllPortals.Count();
+		if( iPortalCount != 0 )
+		{
+			CProp_Portal **pPortals = CProp_Portal_Shared::AllPortals.Base();
+			for( int i = 0; i != iPortalCount; ++i )
+			{
+				CProp_Portal *pTempPortal = pPortals[i];
+				if( pTempPortal->IsActivedAndLinked() )
+				{
+					FunnelIntoPortal( pTempPortal, vPlayerForward, vecAbsVelocity, wishdir );
+				}
+			}
+		}
+	}
+
+	vDirection = wishdir;
+
+	//VectorNormalize( vDirection );
+
+	VelocityToMove( pCmd, vDirection );
+}
+
+void C_Portal_Player::FunnelIntoPortal( C_Prop_Portal *pPortal, const Vector &vPlayerForward, const Vector &vecVelocity, Vector &wishdir )
+{
+	// Make sure there's a portal
+	if ( !pPortal )
+		return;
+
+	if ( vPlayerForward.z > -0.1f )
+		return;
+
+	// Get portal vectors
+	Vector vPortalForward, vPortalRight, vPortalUp;
+	pPortal->GetVectors( &vPortalForward, &vPortalRight, &vPortalUp );
+
+	// Make sure it's a floor portal
+	if ( vPortalForward.z < 0.8f )
+		return;
+
+	vPortalRight.z = 0.0f;
+	vPortalUp.z = 0.0f;
+	VectorNormalize( vPortalRight );
+	VectorNormalize( vPortalUp );
+
+	Vector vPlayerOrigin = GetAbsOrigin();
+	Vector vPlayerToPortal = pPortal->GetAbsOrigin() - vPlayerOrigin;
+
+	// Make sure the player is trying to air control, they're falling downward and they are vertically close to the portal
+	if ( fabsf( wishdir[ 0 ] ) > 64.0f || fabsf( wishdir[ 1 ] ) > 64.0f || vecVelocity[ 2 ] > -165.0f || vPlayerToPortal.z < -512.0f )
+		return;
+
+	// Make sure we're in the 2D portal rectangle
+	if ( ( vPlayerToPortal.Dot( vPortalRight ) * vPortalRight ).Length() > PORTAL_HALF_WIDTH * 1.5f )
+		return;
+	if ( ( vPlayerToPortal.Dot( vPortalUp ) * vPortalUp ).Length() > PORTAL_HALF_HEIGHT * 1.5f )
+		return;
+
+	if ( vPlayerToPortal.z > -8.0f )
+	{
+		// FIXME: Can't replicate this behavior with CMD behavior alone...
+
+		// We're too close the the portal to continue correcting, but zero the velocity so our fling velocity is nice
+		//vecVelocity[ 0 ] = 0.0f;
+		//vecVelocity[ 1 ] = 0.0f;
+	}
+	else
+	{
+		// Funnel toward the portal
+		float fFunnelX = vPlayerToPortal.x * PORTAL_FUNNEL_AMOUNT - vecVelocity[ 0 ];
+		float fFunnelY = vPlayerToPortal.y * PORTAL_FUNNEL_AMOUNT - vecVelocity[ 1 ];
+
+		wishdir[ 0 ] += fFunnelX;
+		wishdir[ 1 ] += fFunnelY;
+	}
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -1689,7 +1939,7 @@ bool C_Portal_Player::CreateMove( float flInputSampleTime, CUserCmd *pCmd )
 		++pCmd->predictedPortalTeleportations;
 	}
 
-	AvoidPlayers( pCmd );
+	HandleMoveMods( pCmd );
 
 	return BaseClass::CreateMove(flInputSampleTime, pCmd);
 }

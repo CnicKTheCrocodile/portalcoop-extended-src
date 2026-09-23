@@ -31,6 +31,12 @@
 
 #define PORTAL_HIDE_PLAYER_RAGDOLL 1
 
+#define USE_PING_DETECTOR_WONDERLAND 0
+
+#ifndef CLIENT_DLL
+#define SECURITY_CAMERA_TOTAL_TO_KNOCK_DOWN 33
+#endif
+
 enum PortalFizzleType_t
 {
 	PORTAL_FIZZLE_SUCCESS = 0,			// Placed fine (no fizzle)
@@ -169,9 +175,9 @@ extern char *g_ppszPortalPassThroughMaterials[];
 extern ConVar pcoop_require_all_players;
 extern ConVar pcoop_require_all_players_force_amount;
 
-#define USE_BASIC_RADIOS
+//#define USE_BASIC_RADIOS
 
-#define RADIO_DATA_FILE "scripts/radios.txt"
+#define RADIO_DATA_FILE "save/radios.txt"
 extern KeyValues *LoadRadioData();
 
 // Map data stuff
@@ -184,7 +190,7 @@ public:
 	CMapInfo();
 	void Reset();
 
-	int GetRequiredPlayers() { return m_iRequiredPlayers; }
+	int8 GetRequiredPlayers() { return m_iRequiredPlayers; }
 	const char* GetAssociatedMapSet( void ) { return m_szAssociatedMapSet; }
 	const char* GetLoadedMapName( void ) const { return m_szLoadedMapName; }
 	int GetPortalGunOwnerPlayer( void ) const;
@@ -194,11 +200,13 @@ public:
 	int GetPortalGunSpawnFireMode( int iPlayerIndex ) const;
 	void SetPortalGunSpawnConfig( int iPlayerIndex, bool bSpawnWithPortalgun, int iPortalID, int iPortalFireMode );
 #ifdef CLIENT_DLL
-	const char *GetCreditsFile( void ) { return m_szCreditsFile; }
+	const char* GetCreditsFile(void) { return m_szCreditsFile; }
+#else
+	uint8 GetNumKnockdownCameras(void) { return m_iNumKnockdownCameras; }
 #endif
 
 private:
-	int m_iRequiredPlayers;
+	int8 m_iRequiredPlayers;
 	char m_szAssociatedMapSet[MAX_MAPSET_LENGTH];
 	char m_szLoadedMapName[64];
 	int m_iPortalGunOwnerPlayer;
@@ -207,6 +215,8 @@ private:
 	int m_iPortalGunSpawnFireMode[MAX_PLAYERS];
 #ifdef CLIENT_DLL
 	char m_szCreditsFile[64];
+#else
+	uint8 m_iNumKnockdownCameras; //SECURITY_CAMERA_TOTAL_TO_KNOCK_DOWN
 #endif
 
 	friend class CMapDataLoader;

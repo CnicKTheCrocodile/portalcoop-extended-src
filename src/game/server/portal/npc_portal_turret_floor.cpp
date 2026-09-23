@@ -658,6 +658,14 @@ void CNPC_Portal_FloorTurret::Deploy( void )
 	LaserOn();
 	RopesOn();
 
+	IPhysicsObject *pTurretPhys = VPhysicsGetObject();
+	if ( (pTurretPhys->GetGameFlags() & FVPHYSICS_PLAYER_HELD) )
+	{
+		SetThink( &CNPC_Portal_FloorTurret::HeldThink );
+		SetNextThink( gpGlobals->curtime );
+		return;
+	}
+
 	BaseClass::Deploy();
 }
 
@@ -781,7 +789,7 @@ void CNPC_Portal_FloorTurret::ActiveThink( void )
 
 		ClearEnemyMemory();
 		SetEnemy( NULL );
-		SetThink( &CNPC_FloorTurret::SuppressThink );
+		SetThink( &CNPC_FloorTurret::ActiveThink );
 
 		return;
 	}
