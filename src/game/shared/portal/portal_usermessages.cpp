@@ -62,6 +62,9 @@ void RegisterUserMessages()
 	// Set's the player's mouse angle
 	usermessages->Register( "SetMouseAngle", sizeof( QAngle ) );
 
+	// Map progress
+	usermessages->Register( "UpdateMapProgress", sizeof( char ) );
+
 	// NVNT register haptic user messages
 	RegisterHapticMessages();
 }

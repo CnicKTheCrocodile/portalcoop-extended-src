@@ -427,6 +427,7 @@ const char *CPortalGameRules::GetGameDescription( void )
 		m_bRestoringPlayer = false;
 		m_bDisableGamePause = false;
 		m_bDisablePlayerRestore = false;
+		m_bDidFirstUnpause = false;
 #endif
 	}
 
@@ -1900,8 +1901,21 @@ void CPortalGameRules::CheckShouldPause( void )
 			pcoop_paused.SetValue( false );
 			RestoreEventQueue();
 			ResetAllPauseData();
+
+			if (!m_bDidFirstUnpause)
+			{
+				OnInitialUnpause();
+				m_bDidFirstUnpause = true;
+			}
+
 		}
 	}
+}
+
+void CPortalGameRules::OnInitialUnpause(void)
+{
+	extern void CheckRadioModes();
+	CheckRadioModes();
 }
 
 //-----------------------------------------------------------------------------
