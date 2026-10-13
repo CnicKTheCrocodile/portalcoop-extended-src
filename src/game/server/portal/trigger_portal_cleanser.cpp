@@ -20,11 +20,14 @@
 #include "trigger_portal_cleanser.h"
 #include "vehicle_base.h"
 #include "prop_box.h"
+#include "npc_portal_turret_floor.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
 BEGIN_DATADESC( CTriggerPortalCleanser )
+
+DEFINE_KEYFIELD( m_bSuppressDissolveOutput, FIELD_BOOLEAN, "SuppressDissolveOutput" ),
 
 // Outputs
 DEFINE_OUTPUT( m_OnDissolve, "OnDissolve" ),
@@ -40,14 +43,16 @@ END_SEND_TABLE()
 
 LINK_ENTITY_TO_CLASS( trigger_portal_cleanser, CTriggerPortalCleanser );
 
+CTriggerPortalCleanser::CTriggerPortalCleanser()
+{
+	m_bSuppressDissolveOutput = false;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 void CTriggerPortalCleanser::Spawn( void )
-{	
-	SetTransmitState( FL_EDICT_PVSCHECK );
-
+{
 	BaseClass::Spawn();
 	
 	InitTrigger();
@@ -172,6 +177,18 @@ void CTriggerPortalCleanser::Touch( CBaseEntity *pOther )
 	CTriggerPortalCleanser::FizzleBaseAnimating( pOther, this );
 }
 
+static char *g_pszPortalNonCleansable[] = 
+{ 
+	"func_door", 
+	"func_door_rotating", 
+	"prop_door_rotating",
+	"func_tracktrain",
+	//"env_ghostanimating",
+	"physicsshadowclone",
+	"prop_energy_ball",
+	NULL,
+};
+
 void CTriggerPortalCleanser::FizzleBaseAnimating( CBaseEntity *pOther, CTriggerPortalCleanser *pTrigger )
 {
 	CBaseAnimating *pBaseAnimating = pOther->GetBaseAnimating();
@@ -211,25 +228,23 @@ void CTriggerPortalCleanser::FizzleBaseAnimating( CBaseEntity *pOther, CTriggerP
 			{
 				pTrigger->m_OnDissolveBox.FireOutput( pOther, pTrigger );
 			}
-			else
-			{
-				CPropWeightedCube *pCube = FClassnameIs( pBaseAnimating, "prop_weighted_cube" ) ? (CPropWeightedCube*)pBaseAnimating : NULL;
-				if ( pCube && pCube->GetCubeType() != CUBE_SPHERE )
-				{
-					pTrigger->m_OnDissolveBox.FireOutput( pOther, pTrigger );
-				}
-			}
-
-			if ( pBaseAnimating->NameMatches( "sphere" ) )
+			else if ( pBaseAnimating->NameMatches( "sphere" ) )
 			{
 				pTrigger->m_OnDissolveSphere.FireOutput( pOther, pTrigger );
 			}
 			else
 			{
 				CPropWeightedCube *pCube = FClassnameIs( pBaseAnimating, "prop_weighted_cube" ) ? (CPropWeightedCube*)pBaseAnimating : NULL;
-				if ( pCube && pCube->GetCubeType() == CUBE_SPHERE )
+				if ( pCube )
 				{
-					pTrigger->m_OnDissolveSphere.FireOutput( pOther, pTrigger );
+					if ( pCube->GetCubeType() != CUBE_SPHERE )
+					{
+						pTrigger->m_OnDissolveSphere.FireOutput( pOther, pTrigger );
+					}
+					else
+					{
+						pTrigger->m_OnDissolveBox.FireOutput( pOther, pTrigger );
+					}
 				}
 			}
 		}
@@ -267,7 +282,18 @@ void CTriggerPortalCleanser::FizzleBaseAnimating( CBaseEntity *pOther, CTriggerP
 			CPropBox *pBox = dynamic_cast<CPropBox*>( pBaseAnimating );
 			if ( pBox )
 			{
-				pBox->PreDissolve( pBox, pTrigger );
+				pBox->PreDissolve( pBox, pTrigger, !pTrigger || !pTrigger->m_bSuppressDissolveOutput );
+			}
+			else
+			{
+				if ( !pTrigger || !pTrigger->m_bSuppressDissolveOutput )
+				{
+					CNPC_Portal_FloorTurret *pTurret = dynamic_cast<CNPC_Portal_FloorTurret*>( pBaseAnimating );
+					if ( pTurret )
+					{
+						pTurret->m_OnDissolved.FireOutput( pTurret, pTrigger );
+					}
+				}
 			}
 
 			// Remove old prop, transfer name and children to the new simple prop

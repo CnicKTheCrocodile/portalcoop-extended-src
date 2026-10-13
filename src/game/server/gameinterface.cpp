@@ -127,6 +127,7 @@ extern ConVar tf_mm_servermode;
 #include "portal_gamerules.h"
 #include "player_resource.h"
 #include "vis/gamemounter.h"
+extern void ResetNumCamerasDetatched();
 #endif
 
 #if defined( REPLAY_ENABLED )
@@ -876,11 +877,18 @@ bool CServerGameDLL::GameInit( void )
 	return true;
 }
 
+extern bool g_bChangedLevelFromTrigger;
+
 // This is called when a game ends (server disconnect, death, restart, load)
 // NOT on level transitions within a game
 void CServerGameDLL::GameShutdown( void )
 {
 	ResetGlobalState();
+#ifdef PORTAL
+	ResetNumCamerasDetatched();
+#endif
+
+	g_bChangedLevelFromTrigger = false;
 }
 
 static bool g_OneWayTransition = false;
@@ -988,6 +996,17 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 	
 #ifdef PORTAL
 	g_bFirstFrameSimulated = false;
+#endif
+
+	if ( g_bChangedLevelFromTrigger )
+	{
+		g_bChangedLevelFromTrigger = false;
+	}
+#ifdef PORTAL
+	else
+	{
+		ResetNumCamerasDetatched();
+	}
 #endif
 
 	g_flGameCurTime = gpGlobals->curtime;
@@ -1254,7 +1273,7 @@ void CServerGameDLL::GameFrame( bool simulating )
 	
 	bool bSimulateEntities = true;
 #ifdef PORTAL
-	if ( PortalGameRules()->ShouldPauseGame() || !g_bFirstFrameSimulated )
+	if ( PortalGameRules()->IsGamePaused() || !g_bFirstFrameSimulated )
 	{
 		bSimulateEntities = false;
 		g_bFirstFrameSimulated = true; // The first frame was simulated

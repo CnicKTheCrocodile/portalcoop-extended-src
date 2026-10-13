@@ -9,38 +9,45 @@ ConVar progress_cv( "progress", "0", FCVAR_USERINFO );
 
 KeyValues *LoadProgressData()
 {	
-	KeyValues *radios = new KeyValues( "progress_data" );
-	if ( !radios->LoadFromFile( g_pFullFileSystem, PROGRESS_DATA_FILE, "GAME" ) )
+	KeyValues *progress_data = new KeyValues( "progress_data" );
+	if ( !progress_data->LoadFromFile( g_pFullFileSystem, PROGRESS_DATA_FILE, NULL ) )
 	{
-		radios->SaveToFile( g_pFullFileSystem, PROGRESS_DATA_FILE, "GAME" );
+		CUtlBuffer buf( 0, 0, CUtlBuffer::TEXT_BUFFER );
+		progress_data->RecursiveSaveToFile( buf, 0 );
+		g_pFullFileSystem->WriteFile( PROGRESS_DATA_FILE, "MOD", buf );
+		if ( !progress_data->LoadFromFile( g_pFullFileSystem, PROGRESS_DATA_FILE, NULL ) )
+		{
+			progress_data->deleteThis();
+			return NULL;
+		}
 	}
 
-	return radios;
+	return progress_data;
 }
 
 void UpdateProgressConVars()
 {
 	int iCurrentMap = 0, iFoundRadios = 0;
-	const char* pszMapSet = g_MapInfo.GetAssociatedMapSet();
+	const char *pszMapSet = g_MapInfo.GetAssociatedMapSet();
 
-	if (*pszMapSet)
+	if ( *pszMapSet )
 	{
-		KeyValues* progress = LoadProgressData();
-		if (progress)
+		KeyValues *progress = LoadProgressData();
+		if ( progress )
 		{
-			iCurrentMap = progress->GetInt(pszMapSet);
+			iCurrentMap = progress->GetInt( pszMapSet );
 			progress->deleteThis();
 		}
-
-		KeyValues* radios = LoadRadioData();
-		if (radios)
+		
+		KeyValues *radios = LoadRadioData();
+		if ( radios )
 		{
-			KeyValues* radios_mapset = radios->FindKey(pszMapSet);
-			if (radios_mapset)
+			KeyValues *radios_mapset = radios->FindKey( pszMapSet );
+			if ( radios_mapset )
 			{
-				for (KeyValues* radio = radios_mapset->GetFirstValue(); radio != NULL; radio = radio->GetNextValue())
+				for ( KeyValues *radio = radios_mapset->GetFirstValue(); radio != NULL; radio = radio->GetNextValue() )
 				{
-					if (radios_mapset->GetBool(radio->GetName()))
+					if ( radios_mapset->GetBool( radio->GetName() ) )
 					{
 						++iFoundRadios;
 					}
@@ -48,8 +55,8 @@ void UpdateProgressConVars()
 			}
 		}
 	}
-
-	progress_cv.SetValue(VarArgs("%i,%i", iCurrentMap, iFoundRadios));
+	
+	progress_cv.SetValue( VarArgs( "%i,%i", iCurrentMap, iFoundRadios ) );
 }
 
 void UpdateMapProgress( char iMapNumber )

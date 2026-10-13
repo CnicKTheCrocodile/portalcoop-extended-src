@@ -1648,6 +1648,8 @@ void CChangeLevel::WarnAboutActiveLead( void )
 
 extern ConVar sv_bonus_challenge;
 
+bool g_bChangedLevelFromTrigger = false;
+
 void CChangeLevel::ChangeLevelNow( CBaseEntity *pActivator )
 {
 	if ( !AllPlayersAreTouching() && m_bAllPlayersMustBeTouching )
@@ -1669,6 +1671,8 @@ void CChangeLevel::ChangeLevelNow( CBaseEntity *pActivator )
 		engine->ChangeLevel( gpGlobals->mapname.ToCStr(), NULL );
 		return;
 	}
+
+	g_bChangedLevelFromTrigger = true;
 
 	// Don't work in multiplayer
 	if ( gpGlobals->maxClients > 1 )

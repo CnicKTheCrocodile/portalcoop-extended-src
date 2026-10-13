@@ -105,8 +105,7 @@ void CTargetID::VidInit()
 //-----------------------------------------------------------------------------
 bool CTargetID::ShouldDraw()
 {
-	extern ConVar pcoop_paused;
-	if ( pcoop_paused.GetBool() )
+	if ( PortalGameRules() && PortalGameRules()->IsGamePaused() )
 	{
 		return false;
 	}

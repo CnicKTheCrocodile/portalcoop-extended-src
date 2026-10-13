@@ -7,102 +7,116 @@
 #include "neurotoxin_countdown.h"
 #endif
 
-int		iNeurotoxinTimeLeft;
-int		iMillisecondsControlled;
+CPointNeurotoxin *g_pActiveNeurotoxin = NULL;
+IMPLEMENT_NETWORKCLASS_ALIASED( PointNeurotoxin, DT_PointNeurotoxin )
+BEGIN_NETWORK_TABLE( CPointNeurotoxin, DT_PointNeurotoxin )
+#ifdef GAME_DLL
+	SendPropDataTable( SENDINFO_DT( m_MainTimer ), &REFERENCE_SEND_TABLE( DT_NetworkedCountdownTimer ) ),
+	SendPropBool( SENDINFO( m_bPaused ) ),
+	SendPropFloat( SENDINFO ( m_flPausedTimeLeft ) ),
+#else
+	RecvPropDataTable( RECVINFO_DT( m_MainTimer ), 0, &REFERENCE_RECV_TABLE( DT_NetworkedCountdownTimer ) ),
+	RecvPropBool( RECVINFO( m_bPaused ) ),
+	RecvPropFloat( RECVINFO ( m_flPausedTimeLeft ) ),
+#endif
+END_NETWORK_TABLE()
 
 #ifndef CLIENT_DLL
+
+static const char *s_pszTimerEndThinkContext = "TimerEndThinkContext";
 
 BEGIN_DATADESC(CPointNeurotoxin)
 #ifdef GAME_DLL
 	DEFINE_INPUTFUNC(FIELD_VOID, "Start",	InputStart),
 	DEFINE_INPUTFUNC(FIELD_VOID, "Stop",	InputStop),
 	DEFINE_INPUTFUNC(FIELD_VOID, "Pause",	InputPause),
-	DEFINE_INPUTFUNC(FIELD_VOID, "Resume",	InputPause),
+	DEFINE_INPUTFUNC(FIELD_VOID, "Resume",	InputResume),
 
-	DEFINE_INPUTFUNC(FIELD_INTEGER, "SetNeurotoxinTimeInSeconds", InputSetNeurotoxinTimeInSeconds),
+	DEFINE_INPUTFUNC(FIELD_FLOAT, "SetNeurotoxinTimeInSeconds", InputSetNeurotoxinTimeInSeconds),
 
-	DEFINE_INPUTFUNC(FIELD_INTEGER, "SetNeurotoxinTimeLeftInSeconds", InputSetNeurotoxinTimeLeftInSeconds),
-	DEFINE_INPUTFUNC(FIELD_INTEGER, "AddNeurotoxinTimeLeftInSeconds", InputAddNeurotoxinTimeLeftInSeconds),
-	DEFINE_INPUTFUNC(FIELD_INTEGER, "SubtractNeurotoxinTimeLeftInSeconds", InputSubtractNeurotoxinTimeLeftInSeconds),
+	DEFINE_INPUTFUNC(FIELD_FLOAT, "SetNeurotoxinTimeLeftInSeconds", InputSetNeurotoxinTimeLeftInSeconds),
+	DEFINE_INPUTFUNC(FIELD_FLOAT, "AddNeurotoxinTimeLeftInSeconds", InputAddNeurotoxinTimeLeftInSeconds),
+	DEFINE_INPUTFUNC(FIELD_FLOAT, "SubtractNeurotoxinTimeLeftInSeconds", InputSubtractNeurotoxinTimeLeftInSeconds),
 
-	DEFINE_INPUTFUNC(FIELD_INTEGER, "SetMaxTimeLeft", InputSetMaxTimeLeft),
+	DEFINE_INPUTFUNC(FIELD_FLOAT, "SetMaxTimeLeft", InputSetMaxTimeLeft),
 
-	DEFINE_KEYFIELD(m_iNeurotoxinTime, FIELD_INTEGER, "NeurotoxinTime"),
-	DEFINE_KEYFIELD(m_iNeurotoxinMaxTimeLeft, FIELD_INTEGER, "NeurotoxinMaxTimeLeft"),
+	DEFINE_KEYFIELD(m_flNeurotoxinTime, FIELD_FLOAT, "NeurotoxinTime"),
+	DEFINE_KEYFIELD(m_flNeurotoxinMaxTimeLeft, FIELD_FLOAT, "NeurotoxinMaxTimeLeft"),
 
 	DEFINE_OUTPUT(m_OnStart, "OnStart"),
 	DEFINE_OUTPUT(m_OnStop, "OnStop"),
 	DEFINE_OUTPUT(m_OnPause, "OnPause"),
 	DEFINE_OUTPUT(m_OnResume, "OnResume"),
 	DEFINE_OUTPUT(m_OnTimerEnded, "OnTimerEnded"),
-	
-	DEFINE_FIELD(m_flMillisecondsControlled,	FIELD_FLOAT),
 
-	DEFINE_FIELD(m_iNeurotoxinTime,				FIELD_INTEGER),
-	DEFINE_FIELD(m_iNeurotoxinTimeLeft,			FIELD_INTEGER),
-
-	DEFINE_FIELD(m_bInProgress,					FIELD_BOOLEAN),
-	DEFINE_FIELD(m_bShouldBeTicking,			FIELD_BOOLEAN),
-	DEFINE_FIELD(m_bShouldDoDamage,				FIELD_BOOLEAN),
-
-	DEFINE_THINKFUNC(ThinkTimer),
+	DEFINE_THINKFUNC(TimerEndThink),
 	DEFINE_THINKFUNC(DamagePlayersThink),
 #endif
 
 END_DATADESC();
-/*
-IMPLEMENT_NETWORKCLASS_DT( CPointNeurotoxin, DT_Point_Neurotoxin)
-#ifdef GAME_DLL
-	SendPropInt(SENDINFO(m_iNeurotoxinTime)),
-	SendPropInt(SENDINFO(m_iNeurotoxinTimeLeft)),
-	SendPropBool(SENDINFO(m_bInProgress)),
-	SendPropBool(SENDINFO(m_bShouldBeTicking)),
-	SendPropBool(SENDINFO(m_bShouldDoDamage)),
-#else
-	RecvPropInt(RECVINFO(m_iNeurotoxinTime)),
-	RecvPropInt(RECVINFO(m_iNeurotoxinTimeLeft)),
-	RecvPropBool(RECVINFO(m_bInProgress)),
-	RecvPropBool(RECVINFO(m_bShouldBeTicking)),
-	RecvPropBool(RECVINFO(m_bShouldDoDamage)),
-#endif
-END_NETWORK_TABLE()
-*/
-LINK_ENTITY_TO_CLASS(point_neurotoxin, CPointNeurotoxin)
+
+LINK_ENTITY_TO_CLASS( point_neurotoxin, CPointNeurotoxin )
+
+#endif // !CLIENT_DLL
 
 CPointNeurotoxin::CPointNeurotoxin()
 {
-	m_bInProgress = false;
+#ifndef CLIENT_DLL
+	m_flNeurotoxinMaxTimeLeft = 0;
+	m_flNeurotoxinTime = 0;
+#endif
+
+	m_bPaused = false;
+	m_flPausedTimeLeft = 0;
 }
 
+CPointNeurotoxin::~CPointNeurotoxin()
+{
+	if ( g_pActiveNeurotoxin == this )
+	{
+		g_pActiveNeurotoxin = NULL;
+	}
+}
+#ifndef CLIENT_DLL
 void CPointNeurotoxin::Start()
 {
-	if (m_bInProgress)
+	if ( InProgress() )
 		return;
 	
-	m_flMillisecondsControlled = 0;
-	m_bInProgress = true;
-	SetThink(&CPointNeurotoxin::ThinkTimer);
-	SetNextThink(gpGlobals->curtime);
+	if ( g_pActiveNeurotoxin )
+	{
+		g_pActiveNeurotoxin->Stop();
+	}
 
-	m_iNeurotoxinTimeLeft = m_iNeurotoxinTime;
+	g_pActiveNeurotoxin = this;
 
-	m_bShouldBeTicking = true;
-#ifndef CLIENT_DLL
+	m_MainTimer.Start( m_flNeurotoxinTime );
+
+	m_flPausedTimeLeft = 0;
+
+	SetThink( &CPointNeurotoxin::DamagePlayersThink );
+	SetNextThink( gpGlobals->curtime + m_flNeurotoxinTime );
+	SetContextThink( &CPointNeurotoxin::TimerEndThink, gpGlobals->curtime + m_flNeurotoxinTime, s_pszTimerEndThinkContext );
+
 	m_OnStart.FireOutput(this, this);
-#endif
 }
 
 void CPointNeurotoxin::Stop()
-{	
-	// Bad check
-	//if (!m_bInProgress)
-	//	return;
+{
+	if ( !InProgress() )
+		return;
 
-	m_bInProgress = false;
+	if ( g_pActiveNeurotoxin == this )
+	{
+		g_pActiveNeurotoxin = NULL;
+	}
+
+	m_flPausedTimeLeft = 0;
+
 	SetThink(NULL);
-	m_iNeurotoxinTimeLeft = m_iNeurotoxinTime;
-	m_bShouldBeTicking = false;
-	m_bShouldDoDamage = false;
+	SetContextThink( NULL, 0, s_pszTimerEndThinkContext );
+
+	m_MainTimer.Invalidate();
 
 #ifndef CLIENT_DLL
 	m_OnStop.FireOutput(this, this);
@@ -110,90 +124,60 @@ void CPointNeurotoxin::Stop()
 }
 void CPointNeurotoxin::Pause()
 {
-	if (!m_bInProgress)
+	if ( m_bPaused )
 		return;
-	if (m_bShouldDoDamage)
-		return;
-	m_bShouldBeTicking = false;
 
-#ifndef CLIENT_DLL
+	if ( !InProgress() )
+		return;
+
+	if ( IsDamaging() )
+		return;
+
+	m_bPaused = true;
+	
+	m_flPausedTimeLeft = m_MainTimer.GetRemainingTime();
+
+	SetThink( NULL );
+	SetContextThink( NULL, 0, s_pszTimerEndThinkContext );
+
 	m_OnPause.FireOutput(this, this);
-#endif
 }
 
 void CPointNeurotoxin::Resume()
 {
-	if (!m_bInProgress)
-		return;
-	if (m_bShouldDoDamage)
+	if ( !m_bPaused )
 		return;
 
-	m_bShouldBeTicking = true;
+	if ( !InProgress() )
+		return;
 
-#ifndef CLIENT_DLL
+	if ( IsDamaging() )
+		return;
+
+	m_bPaused = false;
+	
+	m_MainTimer.Start( m_flPausedTimeLeft );
+	
+	SetThink( &CPointNeurotoxin::DamagePlayersThink );
+	SetNextThink( gpGlobals->curtime + m_flPausedTimeLeft );
+	SetContextThink( &CPointNeurotoxin::TimerEndThink, gpGlobals->curtime + m_flNeurotoxinTime, s_pszTimerEndThinkContext );
+
+	m_flPausedTimeLeft = 0;
+
 	m_OnResume.FireOutput(this, this);
-#endif
 }
 
-#define MILSECSADDED 1.5
-#define NEXTTHINK 0.015
-
-void CPointNeurotoxin::ThinkTimer()
+void CPointNeurotoxin::TimerEndThink()
 {
-	if (m_bShouldBeTicking == true)
-	{
-		m_flMillisecondsControlled = m_flMillisecondsControlled - MILSECSADDED;
-	}
-		if (0 > m_flMillisecondsControlled)
-			m_flMillisecondsControlled = 0;
-	
-//	Msg("m_flMillisecondsControlled = %f\n", m_flMillisecondsControlled);
-
-	if (0 >= m_flMillisecondsControlled)
-	{
-
-		if (m_iNeurotoxinTimeLeft <= 0 && m_flMillisecondsControlled <= 0)
-		{
-				m_flMillisecondsControlled = 0;
-				m_iNeurotoxinTimeLeft = 0;
-				m_bShouldDoDamage = true;
-				m_bShouldBeTicking = false;
-				m_bInProgress = false;
-		}
-
-		if (m_bShouldBeTicking)
-		{
-			m_iNeurotoxinTimeLeft = m_iNeurotoxinTimeLeft - 1;
-			m_flMillisecondsControlled = 99;
-		}
-		else
-		{
-			m_flMillisecondsControlled = 0;
-		}
-
-
-		if (m_bShouldDoDamage)
-		{
-			m_OnTimerEnded.FireOutput(this, this);
-			SetThink(&CPointNeurotoxin::DamagePlayersThink);
-		}
-	}
-	
-
-	iMillisecondsControlled = m_flMillisecondsControlled;
-	iNeurotoxinTimeLeft = m_iNeurotoxinTimeLeft;
-	
-	SetNextThink(gpGlobals->curtime + NEXTTHINK);
+	m_OnTimerEnded.FireOutput( this, this );
 }
 
 void CPointNeurotoxin::DamagePlayersThink()
 {
-	if (m_iNeurotoxinTimeLeft >= 1)
+	if ( !IsDamaging() )
 	{
-		SetThink(&CPointNeurotoxin::ThinkTimer);
-		m_bShouldDoDamage = false;
-		m_bShouldBeTicking = true;
-		m_bInProgress = true;
+		SetNextThink( gpGlobals->curtime + m_MainTimer.GetRemainingTime() );
+		return;
 	}
 
 #ifndef CLIENT_DLL
@@ -208,20 +192,44 @@ void CPointNeurotoxin::DamagePlayersThink()
 			info.SetDamageType(DMG_NERVEGAS);
 			pPlayer->TakeDamage(info);
 
-		}
-	
+		}	
 	}
-
 #endif
 	SetNextThink(gpGlobals->curtime);
 }
 
 bool CPointNeurotoxin::ShouldUseMaxTimeLeft()
 {
-	if (m_iNeurotoxinMaxTimeLeft <= 0)
+	if (m_flNeurotoxinMaxTimeLeft <= 0)
 		return false;
 	else
 		return true;
+}
+
+void CPointNeurotoxin::ClampMainTimer()
+{
+	float elapsed;
+	if ( ShouldUseMaxTimeLeft() )
+	{
+		elapsed = m_MainTimer.GetRemainingTime();
+		elapsed = clamp( elapsed, 0.0, m_flNeurotoxinMaxTimeLeft );
+		m_MainTimer.Start( elapsed );
+	
+		if ( m_bPaused )
+		{
+			m_flPausedTimeLeft = clamp( m_flPausedTimeLeft, 0.0, m_flNeurotoxinMaxTimeLeft );
+		}
+	}
+	else
+	{
+		elapsed = MAX( 0.0, m_MainTimer.GetRemainingTime() );
+		m_MainTimer.Start( elapsed );
+	
+		if ( m_bPaused )
+		{
+			m_flPausedTimeLeft = MAX( 0.0, m_flPausedTimeLeft );
+		}
+	}
 }
 
 void CPointNeurotoxin::InputStart(inputdata_t &inputdata)
@@ -241,148 +249,77 @@ void CPointNeurotoxin::InputResume(inputdata_t &inputdata)
 	Resume();
 }
 
-#ifndef CLIENT_DLL
 void CPointNeurotoxin::InputSetNeurotoxinTimeInSeconds(inputdata_t &inputdata)
 {
-	m_iNeurotoxinTime = inputdata.value.Int();
-
-	if (m_iNeurotoxinTime < 0)
-		m_iNeurotoxinTime = 0;
+	m_flNeurotoxinTime = MAX( 0, inputdata.value.Float() );
 }
 
 void CPointNeurotoxin::InputSetNeurotoxinTimeLeftInSeconds(inputdata_t &inputdata)
 {
-	m_iNeurotoxinTimeLeft = inputdata.value.Int();
-	m_flMillisecondsControlled = 0;
-
-	if (m_iNeurotoxinTimeLeft < 0)
-			m_iNeurotoxinTimeLeft = 0;
-
-	if (ShouldUseMaxTimeLeft() == true)
+	if ( m_bPaused )
 	{
-		if (m_iNeurotoxinTimeLeft > m_iNeurotoxinMaxTimeLeft)
-		{
-			m_iNeurotoxinTimeLeft = m_iNeurotoxinMaxTimeLeft;
-		}
+		m_flPausedTimeLeft = inputdata.value.Float();
 	}
-
+	else
+	{
+		m_MainTimer.Start( inputdata.value.Float() );
+	}
+	ClampMainTimer();
 }
 
 void CPointNeurotoxin::InputAddNeurotoxinTimeLeftInSeconds(inputdata_t &inputdata)
 {
-	m_iNeurotoxinTimeLeft = m_iNeurotoxinTimeLeft + inputdata.value.Int();
-	if (m_iNeurotoxinTimeLeft < 0)
-			m_iNeurotoxinTimeLeft = 0;
-
-	if (ShouldUseMaxTimeLeft() == true)
+	if ( m_bPaused )
 	{
-		if (m_iNeurotoxinTimeLeft > m_iNeurotoxinMaxTimeLeft)
-		{
-			m_iNeurotoxinTimeLeft = m_iNeurotoxinMaxTimeLeft;
-			m_flMillisecondsControlled = 0;
-		}
+		m_flPausedTimeLeft += inputdata.value.Float();
 	}
-
+	else
+	{
+		m_MainTimer.Start( m_MainTimer.GetRemainingTime() + inputdata.value.Float() );
+	}
+	ClampMainTimer();
 }
 
 
 void CPointNeurotoxin::InputSubtractNeurotoxinTimeLeftInSeconds(inputdata_t &inputdata)
 {
-	m_iNeurotoxinTimeLeft = m_iNeurotoxinTimeLeft - inputdata.value.Int();
-	if (m_iNeurotoxinTimeLeft < 0)
-			m_iNeurotoxinTimeLeft = 0;
-
-	if (ShouldUseMaxTimeLeft() == true)
+	if ( m_bPaused )
 	{
-		if (m_iNeurotoxinTimeLeft > m_iNeurotoxinMaxTimeLeft)
-		{
-			m_flMillisecondsControlled = 0;
-			m_iNeurotoxinTimeLeft = m_iNeurotoxinMaxTimeLeft;
-		}
+		m_flPausedTimeLeft -= inputdata.value.Float();
 	}
-
+	else
+	{
+		m_MainTimer.Start( m_MainTimer.GetRemainingTime() - inputdata.value.Float() );
+	}
+	ClampMainTimer();
 }
 
 void CPointNeurotoxin::InputSetMaxTimeLeft(inputdata_t &inputdata)
 {
-	m_iNeurotoxinMaxTimeLeft = inputdata.value.Int();
+	m_flNeurotoxinMaxTimeLeft = inputdata.value.Float();
 }
 
-#endif
+#else
 
-#ifdef GAME_DLL
-//-----------------------------------------------------------------------------
-// Set the remaining time
-//-----------------------------------------------------------------------------
-void CNeurotoxinCountdown::SetRemainingTime()
+
+void CPointNeurotoxin::OnDataChanged( DataUpdateType_t updatetype )
 {
-	m_iRemainingTimeCountdown = iNeurotoxinTimeLeft;
-	m_iMilliseconds = iMillisecondsControlled;
+	BaseClass::OnDataChanged( updatetype );
+	if ( m_bOldInProgress != InProgress() )
+	{
+		if ( InProgress() )
+		{
+			g_pActiveNeurotoxin = this;
+		}
+		else
+		{
+			if ( g_pActiveNeurotoxin == this )
+			{
+				g_pActiveNeurotoxin = NULL;
+			}
+		}
+		m_bOldInProgress = InProgress();
+	}
 }
 
-//-----------------------------------------------------------------------------
-// Constantly update the remaining time to C_NeurotoxinCountdown
-//-----------------------------------------------------------------------------
-void CNeurotoxinCountdown::Think()
-{
-	SetRemainingTime();
-	
-	SetNextThink(gpGlobals->curtime);
-}
-#endif
-
-#endif
-
-
-#ifdef CLIENT_DLL
-
-IMPLEMENT_CLIENTCLASS_DT(C_NeurotoxinCountdown, DT_NeurotoxinCountdown, CNeurotoxinCountdown)
-	RecvPropBool( RECVINFO(m_bEnabled) ),
-	RecvPropInt( RECVINFO(m_iRemainingTimeCountdown) ),
-	RecvPropInt( RECVINFO(m_iMilliseconds) ),
-END_RECV_TABLE()
-
-BEGIN_PREDICTION_DATA(C_NeurotoxinCountdown)
-
-	DEFINE_PRED_FIELD(m_iRemainingTimeCountdown, FIELD_INTEGER ,FTYPEDESC_OVERRIDE),
-	DEFINE_PRED_FIELD(m_iMilliseconds, FIELD_INTEGER, FTYPEDESC_OVERRIDE),
-
-END_PREDICTION_DATA()
-
-
-#endif
-
-//NEUROTOXIN COUNTDOWN CODE
-#ifdef CLIENT_DLL
-CUtlVector< C_NeurotoxinCountdown* > g_NeurotoxinCountdowns;
-
-C_NeurotoxinCountdown::C_NeurotoxinCountdown()
-{
-	g_NeurotoxinCountdowns.AddToTail(this);
-}
-
-C_NeurotoxinCountdown::~C_NeurotoxinCountdown()
-{
-	g_NeurotoxinCountdowns.FindAndRemove(this);
-}
-
-int C_NeurotoxinCountdown::GetMinutes(void)
-{
-	
-	int m_iMinutes = m_iRemainingTimeCountdown / 60;
-	return m_iMinutes;	
-}
-
-int C_NeurotoxinCountdown::GetSeconds(void)
-{
-	int m_iSeconds = m_iRemainingTimeCountdown % 60;
-	return m_iSeconds;
-}
-
-int C_NeurotoxinCountdown::GetMilliseconds(void)
-{
-	return m_iMilliseconds;
-
-	//return static_cast<int>(gpGlobals->curtime * 100.0f) % 100;;
-}
-#endif
+#endif // !CLIENT_DLL
