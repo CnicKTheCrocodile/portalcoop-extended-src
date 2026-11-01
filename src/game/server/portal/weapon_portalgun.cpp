@@ -343,6 +343,9 @@ void CC_UpgradePortalGun( void )
 {
 	CPortal_Player *pPlayer = ToPortalPlayer( UTIL_GetCommandClient() );
 
+	if (!pPlayer)
+		return;
+
 	CWeaponPortalgun *pPortalGun = static_cast<CWeaponPortalgun*>( pPlayer->Weapon_OwnsThisType( "weapon_portalgun" ) );
 	if ( pPortalGun )
 	{
@@ -367,6 +370,9 @@ static void change_portalgun_linkage_id_f( const CCommand &args )
 	unsigned char iNewID = (unsigned char)atoi( args[1] );
 
 	CPortal_Player *pPlayer = (CPortal_Player *)UTIL_GetCommandClient();
+
+	if (!pPlayer)
+		return;
 
 	int iWeaponCount = pPlayer->WeaponCount();
 	for( int i = 0; i != iWeaponCount; ++i )

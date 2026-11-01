@@ -104,6 +104,12 @@ void CInfoPlayerPortalCoop::PlayerSpawned( CBasePlayer *pPlayer )
 
 bool CInfoPlayerPortalCoop::CanSpawnOnMe( CBasePlayer *pPlayer )
 {
+
+	if (IsMarkedForDeletion())
+	{
+		return false;
+	}
+
 	if ( !m_iValidPlayerIndex || m_iValidPlayerIndex == pPlayer->entindex() )
 	{
 		return true;
@@ -955,13 +961,9 @@ void RestorePortalPlayerData( CPortal_Player *pPlayer )
 }
 
 ConVar sv_portal_coop_ping_cooldown_time( "sv_portal_coop_ping_cooldown_time", "0.5", FCVAR_REPLICATED, "Time (in seconds) between coop pings", true, 0.1f, false, 60.0f );
-#if 0
-ConVar sv_portal_coop_ping_indicator_show_to_all_players( "sv_portal_coop_ping_indicator_show_to_all_players", "1", FCVAR_REPLICATED, "Sets if pinging should show for all players");
-#endif
 ConVar sv_portal_coop_allow_ping("sv_portal_coop_allow_ping", "1", FCVAR_REPLICATED, "Sets if players are allowed to ping");
 
 #define COOP_PING_SOUNDSCRIPT_NAME "Player.Coop_Ping"
-#define COOP_PING_HUD_SOUNDSCRIPT_NAME "Player.Coop_Ping_Hud" //"npc/roller/mine/rmine_chirp_answer1.wav"
 //#define COOP_PING_PARTICLE_NAME "command_target_ping"
 #define COOP_PING_PARTICLE_DEFAULT "command_target_ping"
 #define COOP_PING_PARTICLE_NAME_BLUE "command_target_ping_blue"
@@ -1077,7 +1079,6 @@ void CPortal_Player::Precache(void)
 	PrecacheParticleSystem(COOP_PING_PARTICLE_NAME_WHITE);
 	//PrecacheParticleSystem( "command_target_ping_just_arrows" );
 	PrecacheScriptSound( COOP_PING_SOUNDSCRIPT_NAME );
-	PrecacheScriptSound( COOP_PING_HUD_SOUNDSCRIPT_NAME );
 
 	PrecacheScriptSound("PortalPlayer.EnterPortal");
 	PrecacheScriptSound("PortalPlayer.ExitPortal");
@@ -1514,16 +1515,6 @@ void ShowAnnotation( Vector location, int follow_entindex, int entindex, int for
 			pEvent->SetInt( "forcedpingicon", forcedpingicon );
 
 		gameeventmanager->FireEvent( pEvent );
-	}
-
-	// Emit the ping sound from the owner (or world if invalid)
-	if ( entindex != -1 )
-	{
-		CBaseEntity *pOwner = UTIL_EntityByIndex( entindex );
-		if ( pOwner )
-		{
-			pOwner->EmitSound( COOP_PING_HUD_SOUNDSCRIPT_NAME );
-		}
 	}
 }
 

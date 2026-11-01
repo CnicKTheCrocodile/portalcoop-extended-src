@@ -7,6 +7,7 @@ enum RadioMode_t
 	RADIO_DINOSAUR_DEFAULT,					// Has signals and can be detected
 	RADIO_DINOSAUR_REQUIRE_COMPLETION,		// Deletes itself if not everyone has completed the mapset
 	RADIO_REPLACE_WITH_DINOSAUR,			// Changes to dinosaur mode if every player has completed the mapset
+	RADIO_NUM_MODES,
 };
 
 #endif // PORTAL_RADIO_SHARED_H

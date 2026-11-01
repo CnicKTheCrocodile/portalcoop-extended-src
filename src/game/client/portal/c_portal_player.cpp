@@ -53,9 +53,6 @@ ConVar mapsets_cv( "mapsets", "", FCVAR_USERINFO | FCVAR_DEVELOPMENTONLY );
 #define REORIENTATION_RATE 120.0f
 #define REORIENTATION_ACCELERATION_RATE 400.0f
 
-//#define ENABLE_PORTAL_EYE_INTERPOLATION_CODE 1
-
-
 #define DEATH_CC_LOOKUP_FILENAME "materials/correction/cc_death.raw"
 #define DEATH_CC_FADE_SPEED 0.05f
 
@@ -1024,7 +1021,15 @@ void C_Portal_Player::FixTeleportationRoll( void )
 	{
 		if ( vAbsAngles[ROLL] != 0.0f )
 		{
-			if ( vCurrentUp.z < 0.2f )
+			if (fabs(vAbsAngles[ROLL]) < 0.001) // pcoop hax
+			{
+				vAbsAngles[ROLL] = 0.0;
+				engine->SetViewAngles(vAbsAngles);
+				m_angEyeAngles = vAbsAngles;
+				m_iv_angEyeAngles.Reset(gpGlobals->curtime);
+
+			}
+			else if (vCurrentUp.z < 0.2f)
 			{
 				float fDegrees = gpGlobals->frametime * m_fReorientationRate;
 				if ( vCurrentForward.z > 0.0f )
@@ -1292,6 +1297,11 @@ void C_Portal_Player::ApplyUnpredictedPortalTeleportation( const CProp_Portal *p
 		}
 	}
 
+	UTIL_Portal_PointTransform(pEnteredPortal->MatrixThisToLinked(), PortalEyeInterpolation.m_vEyePosition_Interpolated, PortalEyeInterpolation.m_vEyePosition_Interpolated);
+	UTIL_Portal_PointTransform(pEnteredPortal->MatrixThisToLinked(), PortalEyeInterpolation.m_vEyePosition_Uninterpolated, PortalEyeInterpolation.m_vEyePosition_Uninterpolated);
+
+	PortalEyeInterpolation.m_bEyePositionIsInterpolating = true;
+
 	for ( int i = 0; i < MAX_VIEWMODELS; i++ )
 	{
 		CBaseViewModel *pViewModel = GetViewModel( i );
@@ -1358,6 +1368,9 @@ void C_Portal_Player::ApplyPredictedPortalTeleportation( CProp_Portal *pEnteredP
 		C_PortalGhostRenderable::CreateInversion( pGhost, pEnteredPortal, gpGlobals->curtime, true );
 	}
 #endif
+
+	UTIL_Portal_PointTransform(pEnteredPortal->MatrixThisToLinked(), PortalEyeInterpolation.m_vEyePosition_Interpolated, PortalEyeInterpolation.m_vEyePosition_Interpolated);
+	UTIL_Portal_PointTransform(pEnteredPortal->MatrixThisToLinked(), PortalEyeInterpolation.m_vEyePosition_Uninterpolated, PortalEyeInterpolation.m_vEyePosition_Uninterpolated);
 
 	//Warning( "C_Portal_Player::ApplyPredictedPortalTeleportation() ent:%i slot:%i\n", entindex(), engine->GetActiveSplitScreenPlayerSlot() );
 	ApplyTransformToInterpolators( pEnteredPortal->m_matrixThisToLinked, gpGlobals->curtime, false, bForcedDuck );
@@ -1612,7 +1625,7 @@ bool C_Portal_Player::AvoidPlayers( CUserCmd *pCmd )
 			const Vector &vecPlayerVelocity = GetAbsVelocity();
 			const Vector &vecAvoidVelocity = pAvoidPlayer->GetAbsVelocity();
 			if ( vecPlayerVelocity.z < -fling_test_speed && vecAvoidVelocity.z < -fling_test_speed // Must be falling at a fast enough speed
-				&& vecPlayerVelocity.z >= vecAvoidVelocity.z // The slower player gets pushed, but if they're equal, push em' both (doing >= because of negative velocity)
+				//&& vecPlayerVelocity.z >= vecAvoidVelocity.z // The slower player gets pushed, but if they're equal, push em' both (doing >= because of negative velocity)
 				)			
 			{
 				// Allow this behavior if they're far enough from each other
@@ -2763,6 +2776,9 @@ Vector C_Portal_Player::EyePosition()
 	if ( !IsLocalPlayer() )
 		return BaseClass::EyePosition();
 
+	if ( prediction->InPrediction() )
+		return BaseClass::EyePosition();
+
 	return PortalEyeInterpolation.m_vEyePosition_Interpolated;  
 }
 #endif
@@ -3078,56 +3094,27 @@ CPlayerGlower g_PlayerGlower;
 
 void CPlayerGlower::PreRender( void )
 {
-	if ( m_bGlowingPlayers )
+	for (int i = 1; i <= gpGlobals->maxClients; ++i)
 	{
-		for (int i = 1; i <= gpGlobals->maxClients; ++i)
-		{
-			C_Portal_Player *pPlayer = (C_Portal_Player*)UTIL_PlayerByIndex(i);
+		C_Portal_Player *pPlayer = (C_Portal_Player*)UTIL_PlayerByIndex(i);
 
-			if ( !pPlayer )
-				continue;
+		if ( !pPlayer )
+			continue;
 
-			if ( pPlayer->IsLocalPlayer() )
-				continue;
+		if ( pPlayer->IsLocalPlayer() )
+			continue;
 										
-			pPlayer->SetClientSideGlowEnabled( true );
+		pPlayer->SetClientSideGlowEnabled( m_bGlowingPlayers );
 
-			// We also want the player's weapon to glow
-			for (int i = 0; i < pPlayer->WeaponCount(); ++i)
-			{					
-				C_BaseCombatWeapon *pWeapon = pPlayer->GetWeapon(i);
+		// We also want the player's weapon to glow
+		for (int i = 0; i < pPlayer->WeaponCount(); ++i)
+		{					
+			C_BaseCombatWeapon *pWeapon = pPlayer->GetWeapon(i);
 
-				if (!pWeapon)
-					continue;
-
-				pWeapon->SetClientSideGlowEnabled( true );
-			}
-		}
-	}
-	else
-	{
-		for (int i = 1; i <= gpGlobals->maxClients; ++i)
-		{
-			C_Portal_Player *pPlayer = (C_Portal_Player*)UTIL_PlayerByIndex(i);
-
-			if ( !pPlayer )
-				continue;
-			
-			if ( pPlayer->IsLocalPlayer() )
+			if (!pWeapon)
 				continue;
 
-			pPlayer->SetClientSideGlowEnabled( false );
-			
-			// Don't forget to turn off the weapon glow!
-			for (int i = 0; i < pPlayer->WeaponCount(); ++i)
-			{					
-				C_BaseCombatWeapon *pWeapon = pPlayer->GetWeapon(i);
-
-				if (!pWeapon)
-					continue;
-
-				pWeapon->SetClientSideGlowEnabled( false );
-			}
+			pWeapon->SetClientSideGlowEnabled( m_bGlowingPlayers );
 		}
 	}
 }
