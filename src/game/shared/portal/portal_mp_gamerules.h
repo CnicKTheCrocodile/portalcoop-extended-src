@@ -92,6 +92,7 @@ public:
 	virtual ~CPortalMPGameRules( void );
 
 	virtual void Precache( void );
+	virtual bool AllowThirdPersonCamera( void );
 	virtual bool ShouldCollide( int collisionGroup0, int collisionGroup1 );
 	virtual bool ClientCommand( CBaseEntity *pEdict, const CCommand &args );
 

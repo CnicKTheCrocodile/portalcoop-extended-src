@@ -123,6 +123,18 @@ public:
 	
 	CNetworkVar (bool, m_bHasSprintDevice);
 	CNetworkVar (bool, m_bSprintEnabled);
+	CNetworkVar (bool, m_bTaunting);
+	CNetworkVar (bool, m_bTauntThirdPerson);
+	bool m_bTauntAllowsMovement;
+	float m_flTauntEndTime;
+	int m_iNextTauntSequence;
+	int m_nTauntPreviouslyDisabledButtons;
+	int m_nTauntAttackButtonsDown;
+
+	bool StartTaunt( const char *pszAnimationName, bool bThirdPerson = true );
+	bool StartNextTaunt( void );
+	void StopTaunt( void );
+	bool IsTaunting( void ) const { return m_bTaunting; }
 	
 	void UpdatePortalPlaneSounds( void );
 	void UpdateWooshSounds( void );

@@ -23,6 +23,7 @@
 #include "ivieweffects.h"		// for screenshake
 #include "prop_portal_shared.h"
 #include "portal_gamerules.h"
+#include "cam_thirdperson.h"
 #include "collisionutils.h"
 #include "c_triggers.h"
 #include "prediction.h"
@@ -323,6 +324,8 @@ IMPLEMENT_CLIENTCLASS_DT(C_Portal_Player, DT_Portal_Player, CPortal_Player)
 	RecvPropBool( RECVINFO( m_bSuppressingCrosshair ) ),
 	RecvPropBool( RECVINFO( m_bHasSprintDevice ) ),
 	RecvPropBool( RECVINFO( m_bSprintEnabled ) ),
+	RecvPropBool( RECVINFO( m_bTaunting ) ),
+	RecvPropBool( RECVINFO( m_bTauntThirdPerson ) ),
 	RecvPropBool( RECVINFO( m_bSilentDropAndPickup ) ),
 	RecvPropBool( RECVINFO( m_bIsListenServerHost ) ),
 	RecvPropBool( RECVINFO( m_bHeldObjectOnOppositeSideOfPortal ) ),
@@ -384,6 +387,7 @@ C_Portal_Player::C_Portal_Player()
 
 	m_hIDEnt = NULL;
 	m_iSpawnInterpCounterCache = 0;
+	m_bTauntCameraWasActive = false;
 
 	m_hRagdoll.Set( NULL );
 
@@ -1108,25 +1112,28 @@ void C_Portal_Player::UpdateClientSideAnimation( void )
 
 	// Update the animation data. It does the local check here so this works when using
 	// a third-person camera (and we don't have valid player angles).
-	if ( C_BasePlayer::IsLocalPlayer() )
+	if ( !m_bTaunting )
 	{
-		QAngle eyeAngles = EyeAngles();
-		m_PlayerAnimState->Update( eyeAngles[YAW], eyeAngles[PITCH] );
-	}
-	else
-	{
-		QAngle qEffectiveAngles;
-		
-		if( m_iv_angEyeAngles.GetInterpolatedTime( GetEffectiveInterpolationCurTime( gpGlobals->curtime ) ) < m_fLatestServerTeleport )
+		if ( C_BasePlayer::IsLocalPlayer() )
 		{
-			qEffectiveAngles = TransformAnglesToLocalSpace( m_angEyeAngles, m_matLatestServerTeleportationInverseMatrix.As3x4() );
+			QAngle eyeAngles = EyeAngles();
+			m_PlayerAnimState->Update( eyeAngles[YAW], eyeAngles[PITCH] );
 		}
 		else
 		{
-			qEffectiveAngles = m_angEyeAngles;
-		}
+			QAngle qEffectiveAngles;
+			
+			if( m_iv_angEyeAngles.GetInterpolatedTime( GetEffectiveInterpolationCurTime( gpGlobals->curtime ) ) < m_fLatestServerTeleport )
+			{
+				qEffectiveAngles = TransformAnglesToLocalSpace( m_angEyeAngles, m_matLatestServerTeleportationInverseMatrix.As3x4() );
+			}
+			else
+			{
+				qEffectiveAngles = m_angEyeAngles;
+			}
 
-		m_PlayerAnimState->Update( qEffectiveAngles[YAW], qEffectiveAngles[PITCH] );
+			m_PlayerAnimState->Update( qEffectiveAngles[YAW], qEffectiveAngles[PITCH] );
+		}
 	}
 
 	BaseClass::UpdateClientSideAnimation();
@@ -2332,6 +2339,22 @@ void C_Portal_Player::OnDataChanged( DataUpdateType_t type )
 {
 	BaseClass::OnDataChanged( type );
 	FixPortalEnvironmentOwnership();
+
+	const bool bTauntCameraActive = m_bTaunting && m_bTauntThirdPerson;
+	if ( IsLocalPlayer() && m_bTauntCameraWasActive != bTauntCameraActive )
+	{
+		if ( bTauntCameraActive )
+		{
+			// Network interpolation can arrive after the server has already advanced the sequence.
+			// Restart it locally so the player sees the full taunt from its first frame.
+			ResetSequenceInfo();
+			SetCycle( 0.0f );
+			SetPlaybackRate( 1.0f );
+		}
+
+		g_ThirdPersonManager.SetTauntCameraActive( bTauntCameraActive );
+		m_bTauntCameraWasActive = bTauntCameraActive;
+	}
 
 	if( m_hSurroundingLiquidPortal != PreDataChanged_Backup.m_hSurroundingLiquidPortal )
 	{

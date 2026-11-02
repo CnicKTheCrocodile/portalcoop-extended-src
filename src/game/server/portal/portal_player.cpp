@@ -592,6 +592,8 @@ SendPropDataTable( "portalnonlocaldata", 0, &REFERENCE_SEND_TABLE( DT_PortalNonL
 	SendPropEHandle(SENDINFO(m_hHeldObjectPortal)),
 	SendPropBool(SENDINFO(m_bHasSprintDevice)),
 	SendPropBool(SENDINFO(m_bSprintEnabled)),
+	SendPropBool(SENDINFO(m_bTaunting)),
+	SendPropBool(SENDINFO(m_bTauntThirdPerson)),
 	SendPropBool(SENDINFO(m_bSilentDropAndPickup)),
 	SendPropBool(SENDINFO(m_bSuppressingCrosshair)),
 	SendPropBool(SENDINFO(m_bIsListenServerHost)),
@@ -637,6 +639,11 @@ DEFINE_SOUNDPATCH(m_pWooshSound),
 	DEFINE_FIELD(m_angEyeAngles, FIELD_VECTOR),
 	DEFINE_FIELD(m_hSurroundingLiquidPortal, FIELD_EHANDLE),
 	DEFINE_FIELD(m_flLastPingTime, FIELD_FLOAT),
+	DEFINE_FIELD(m_bTauntAllowsMovement, FIELD_BOOLEAN),
+	DEFINE_FIELD(m_flTauntEndTime, FIELD_TIME),
+	DEFINE_FIELD(m_iNextTauntSequence, FIELD_INTEGER),
+	DEFINE_FIELD(m_nTauntPreviouslyDisabledButtons, FIELD_INTEGER),
+	DEFINE_FIELD(m_nTauntAttackButtonsDown, FIELD_INTEGER),
 
 DEFINE_INPUTFUNC( FIELD_VOID, "DoPingHudHint", InputDoPingHudHint ),
 
@@ -1013,6 +1020,13 @@ CPortal_Player::CPortal_Player()
 	m_flLookForUseEntityTime = 0;
 
 	m_bForceBumpWeapon = false;
+	m_bTaunting = false;
+	m_bTauntThirdPerson = false;
+	m_bTauntAllowsMovement = false;
+	m_flTauntEndTime = 0.0f;
+	m_iNextTauntSequence = 0;
+	m_nTauntPreviouslyDisabledButtons = 0;
+	m_nTauntAttackButtonsDown = 0;
 
 	m_bCatapulted = false;
 
@@ -1079,6 +1093,7 @@ void CPortal_Player::Precache(void)
 	PrecacheParticleSystem(COOP_PING_PARTICLE_NAME_WHITE);
 	//PrecacheParticleSystem( "command_target_ping_just_arrows" );
 	PrecacheScriptSound( COOP_PING_SOUNDSCRIPT_NAME );
+	PrecacheScriptSound( "Player.Coop_Ping_Hud" );
 
 	PrecacheScriptSound("PortalPlayer.EnterPortal");
 	PrecacheScriptSound("PortalPlayer.ExitPortal");
@@ -1181,6 +1196,17 @@ const char *s_pHudHintContext = "HudHintContext";
 //-----------------------------------------------------------------------------
 void CPortal_Player::Spawn(void)
 {
+	if ( m_bTaunting )
+		StopTaunt();
+
+	m_bTaunting = false;
+	m_bTauntThirdPerson = false;
+	m_bTauntAllowsMovement = false;
+	m_flTauntEndTime = 0.0f;
+	m_iNextTauntSequence = 0;
+	m_nTauntPreviouslyDisabledButtons = 0;
+	m_nTauntAttackButtonsDown = 0;
+
 	PCoopEnsurePortalGunSpawnConfigInitialized();
 	PCoopSyncPortalGunSpawnConfigFromMapData();
 
@@ -1693,6 +1719,7 @@ void CPortal_Player::PlayCoopPingEffect( void )
 		}
 
 		EmitSound( COOP_PING_SOUNDSCRIPT_NAME );
+		StartTaunt( "look", false );
 	}
 
 	// Note this in the player proxy
@@ -1811,8 +1838,16 @@ void CPortal_Player::PreThink(void)
 void CPortal_Player::PostThink(void)
 {
 	BaseClass::PostThink();
-	
-	m_PlayerAnimState->Update(m_angEyeAngles[YAW], m_angEyeAngles[PITCH]);
+
+	if ( m_bTaunting )
+	{
+		if ( !IsAlive() || IsSequenceFinished() || gpGlobals->curtime >= m_flTauntEndTime )
+			StopTaunt();
+	}
+	else
+	{
+		m_PlayerAnimState->Update(m_angEyeAngles[YAW], m_angEyeAngles[PITCH]);
+	}
 
 	// Store the eye angles pitch so the client can compute its animation state correctly.
 	m_angEyeAngles = EyeAngles();
@@ -2240,6 +2275,104 @@ void CPortal_Player::SetAnimation( PLAYER_ANIM playerAnim )
 
 }
 
+bool CPortal_Player::StartTaunt( const char *pszAnimationName, bool bThirdPerson )
+{
+	if ( m_bTaunting || !pszAnimationName || !pszAnimationName[0] || !IsAlive() || IsInAVehicle() )
+		return false;
+
+	char szSequenceName[128];
+	const char *pszPrefix = "taunt_";
+	const char *pszSuffix = "_PORTALGUN";
+	const int nPrefixLength = Q_strlen( pszPrefix );
+	const int nSuffixLength = Q_strlen( pszSuffix );
+	const bool bHasPrefix = !Q_strnicmp( pszAnimationName, pszPrefix, nPrefixLength );
+	const char *pszTauntName = bHasPrefix ? pszAnimationName + nPrefixLength : pszAnimationName;
+	int nTauntNameLength = Q_strlen( pszTauntName );
+	if ( nTauntNameLength >= nSuffixLength && !Q_stricmp( pszTauntName + nTauntNameLength - nSuffixLength, pszSuffix ) )
+		nTauntNameLength -= nSuffixLength;
+
+	const bool bHasPortalgun = GetActivePortalWeapon() != NULL;
+	const int nRequiredLength = nPrefixLength + nTauntNameLength + ( bHasPortalgun ? nSuffixLength : 0 );
+	if ( nRequiredLength >= sizeof( szSequenceName ) || nTauntNameLength <= 0 )
+		return false;
+
+	Q_snprintf( szSequenceName, sizeof( szSequenceName ), "%s%.*s%s", pszPrefix, nTauntNameLength, pszTauntName, bHasPortalgun ? pszSuffix : "" );
+
+	const int nSequence = LookupSequence( szSequenceName );
+	if ( nSequence < 0 )
+		return false;
+
+	const float flDuration = SequenceDuration( nSequence );
+	if ( flDuration <= 0.0f )
+		return false;
+
+	m_bTaunting = true;
+	m_bTauntThirdPerson = bThirdPerson;
+	m_bTauntAllowsMovement = nTauntNameLength == 4 && !Q_strnicmp( pszTauntName, "look", 4 );
+	int nTauntDisabledButtons = IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT | IN_JUMP | IN_DUCK | IN_SPEED | IN_WALK | IN_USE | IN_RELOAD | IN_COOP_PING;
+	if ( m_bTauntAllowsMovement )
+		nTauntDisabledButtons &= ~( IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT );
+	m_nTauntPreviouslyDisabledButtons = m_afButtonDisabled & nTauntDisabledButtons;
+	DisableButtons( nTauntDisabledButtons );
+	if ( GetToggledDuckState() )
+		ToggleDuck();
+	UnDuck();
+	ResetSequence( nSequence );
+	SetCycle( 0.0f );
+	SetPlaybackRate( 1.0f );
+	m_flTauntEndTime = gpGlobals->curtime + flDuration;
+	return true;
+}
+
+bool CPortal_Player::StartNextTaunt( void )
+{
+	CStudioHdr *pStudioHdr = GetModelPtr();
+	if ( !pStudioHdr || pStudioHdr->GetNumSeq() <= 0 )
+		return false;
+
+	const int nSequenceCount = pStudioHdr->GetNumSeq();
+	const bool bHasPortalgun = GetActivePortalWeapon() != NULL;
+	const int nSuffixLength = Q_strlen( "_PORTALGUN" );
+	for ( int iOffset = 0; iOffset < nSequenceCount; ++iOffset )
+	{
+		const int nSequence = ( m_iNextTauntSequence + iOffset ) % nSequenceCount;
+		const char *pszName = pStudioHdr->pSeqdesc( nSequence ).pszLabel();
+		if ( !pszName || !pszName[0] )
+			continue;
+
+		const int nNameLength = Q_strlen( pszName );
+		const bool bHasPortalgunSuffix = nNameLength >= nSuffixLength && !Q_stricmp( pszName + nNameLength - nSuffixLength, "_PORTALGUN" );
+		if ( Q_strnicmp( pszName, "taunt_", 6 ) || bHasPortalgunSuffix != bHasPortalgun )
+			continue;
+
+		if ( StartTaunt( pszName ) )
+		{
+			m_iNextTauntSequence = ( nSequence + 1 ) % nSequenceCount;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void CPortal_Player::StopTaunt( void )
+{
+	if ( !m_bTaunting )
+		return;
+
+	m_bTaunting = false;
+	m_flTauntEndTime = 0.0f;
+	m_nTauntAttackButtonsDown = 0;
+	int nTauntDisabledButtons = IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT | IN_JUMP | IN_DUCK | IN_SPEED | IN_WALK | IN_USE | IN_RELOAD | IN_COOP_PING;
+	if ( m_bTauntAllowsMovement )
+		nTauntDisabledButtons &= ~( IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT );
+	EnableButtons( nTauntDisabledButtons & ~m_nTauntPreviouslyDisabledButtons );
+	m_nTauntPreviouslyDisabledButtons = 0;
+	m_bTauntThirdPerson = false;
+	m_bTauntAllowsMovement = false;
+	ResetAnimation();
+}
+
 CAI_Expresser* CPortal_Player::CreateExpresser()
 {
 	Assert(!m_pExpresser);
@@ -2643,6 +2776,30 @@ void CPortal_Player::PlayerRunCommand(CUserCmd* ucmd, IMoveHelper* moveHelper)
 		MatrixAngles( matAngleTransformOut, ucmd->viewangles );
 	}
 
+	if ( m_bTaunting )
+	{
+		if ( !m_bTauntAllowsMovement )
+		{
+			ucmd->forwardmove = 0.0f;
+			ucmd->sidemove = 0.0f;
+		}
+		ucmd->upmove = 0.0f;
+		int nBlockedButtons =  IN_SPEED | IN_WALK | IN_USE | IN_RELOAD;
+		if ( !m_bTauntAllowsMovement )
+			nBlockedButtons |= IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT | IN_JUMP | IN_DUCK | IN_COOP_PING;
+
+		// Allow one portal shot per button press during any taunt. A held
+		// button must be released before it can fire again after weapon cooldown.
+		const int nAttackButtons = ucmd->buttons & ( IN_ATTACK | IN_ATTACK2 );
+		nBlockedButtons |= nAttackButtons & m_nTauntAttackButtonsDown;
+		m_nTauntAttackButtonsDown = nAttackButtons;
+		ucmd->buttons &= ~nBlockedButtons;
+	}
+	else
+	{
+		m_nTauntAttackButtonsDown = 0;
+	}
+
 	BaseClass::PlayerRunCommand(ucmd, moveHelper);
 }
 
@@ -2786,6 +2943,9 @@ void CPortal_Player::Jump(void)
 
 void CPortal_Player::Event_Killed(const CTakeDamageInfo& info)
 {
+	if ( m_bTaunting )
+		StopTaunt();
+
 	//update damage info with our accumulated physics force
 	CTakeDamageInfo subinfo = info;
 	subinfo.SetDamageForce(m_vecTotalBulletForce);
@@ -3366,6 +3526,72 @@ CON_COMMAND(startadmiregloves, "Starts the admire gloves animation.")
 
 	if (pPlayer)
 		pPlayer->StartAdmireGlovesAnimation();
+}
+
+CON_COMMAND( taunt, "Play the next available taunt, list taunts with 'taunt list', or play one by name." )
+{
+	CPortal_Player *pPlayer = ToPortalPlayer( UTIL_GetCommandClient() );
+	if ( !pPlayer )
+	{
+		Msg( "Usage: taunt [list|animation name]\n" );
+		return;
+	}
+
+	if ( args.ArgC() == 1 )
+	{
+		if ( !pPlayer->StartNextTaunt() )
+			Msg( "No available taunts, or the current taunt is still playing. Use 'taunt list'.\n" );
+		return;
+	}
+
+	if ( args.ArgC() > 3 || ( args.ArgC() == 3 && Q_stricmp( args[1], "list" ) ) )
+	{
+		Msg( "Usage: taunt [list [letter]|animation name]\n" );
+		return;
+	}
+
+	if ( !Q_stricmp( args[1], "list" ) )
+	{
+		const char *pszLetterFilter = args.ArgC() == 3 ? args[2] : NULL;
+		CStudioHdr *pStudioHdr = pPlayer->GetModelPtr();
+		const bool bHasPortalgun = pPlayer->GetActivePortalWeapon() != NULL;
+		bool bFoundTaunt = false;
+		if ( pStudioHdr )
+		{
+			for ( int iSequence = 0; iSequence < pStudioHdr->GetNumSeq(); ++iSequence )
+			{
+				const char *pszName = pStudioHdr->pSeqdesc( iSequence ).pszLabel();
+				if ( !pszName || !pszName[0] )
+					continue;
+
+				const int nNameLength = Q_strlen( pszName );
+				const int nSuffixLength = Q_strlen( "_PORTALGUN" );
+				const bool bHasPortalgunSuffix = nNameLength >= nSuffixLength && !Q_stricmp( pszName + nNameLength - nSuffixLength, "_PORTALGUN" );
+				if ( Q_strnicmp( pszName, "taunt_", 6 ) || bHasPortalgunSuffix != bHasPortalgun )
+					continue;
+
+				const char *pszTauntName = pszName + 6;
+				if ( !pszLetterFilter || !pszLetterFilter[0] || !Q_strnicmp( pszTauntName, pszLetterFilter, Q_strlen( pszLetterFilter ) ) )
+				{
+					Msg( "%s\n", pszName );
+					bFoundTaunt = true;
+				}
+			}
+		}
+		if ( !bFoundTaunt )
+		{
+			if ( pszLetterFilter )
+				Msg( "No taunt starting with '%s' found on this player model.\n", pszLetterFilter );
+			else if ( bHasPortalgun )
+				Msg( "No taunt_*_PORTALGUN sequences found on this player model.\n" );
+			else
+				Msg( "No taunt_* sequences found on this player model.\n" );
+		}
+		return;
+	}
+
+	if ( !pPlayer->StartTaunt( args[1] ) )
+		Msg( "Taunt animation not found or unavailable: %s\n", args[1] );
 }
 
 CON_COMMAND(displayportalplayerstats, "Displays current level stats for portals placed, steps taken, and seconds taken.")

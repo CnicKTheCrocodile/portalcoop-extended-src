@@ -162,6 +162,8 @@ public:
 
 	bool m_bHasSprintDevice;
 	bool m_bSprintEnabled;
+	bool m_bTaunting;
+	bool m_bTauntThirdPerson;
 	
 	
 	struct PredictedPortalTeleportation_t 
@@ -230,6 +232,7 @@ protected:
 private:
 	
 	bool m_bIsListenServerHost;
+	bool m_bTauntCameraWasActive;
 	
 	C_Portal_Player( const C_Portal_Player & );
 #ifdef ENABLE_PORTAL_EYE_INTERPOLATION_CODE

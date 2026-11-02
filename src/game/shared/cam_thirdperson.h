@@ -73,6 +73,8 @@ public:
 
 	void	SetForcedThirdPerson( bool bForced ) { m_bForced = bForced; }
 	bool	GetForcedThirdPerson() const { return m_bForced; }
+	void	SetTauntCameraActive( bool bActive );
+	bool	IsTauntCameraTransitioning( void ) const { return m_bTauntCameraTransitioning; }
 
 private:
 
@@ -101,6 +103,11 @@ private:
 
 	float	m_flLerpTime;
 	float	m_flUpLerpTime;
+	Vector	m_vecTauntCameraStart;
+	Vector	m_vecTauntCameraTarget;
+	float	m_flTauntCameraTransitionStart;
+	bool	m_bTauntCameraTransitioning;
+	bool	m_bTauntCameraReturning;
 };
 
 extern CThirdPersonManager g_ThirdPersonManager;

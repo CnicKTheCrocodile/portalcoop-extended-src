@@ -23,6 +23,8 @@
 #ifdef CLIENT_DLL
 	#include "c_world.h"
 	#include "c_physicsprop.h"
+	#include "c_portal_player.h"
+	#include "cam_thirdperson.h"
 	#include "tier3/tier3.h"
 #else
 	#include "player.h"
@@ -56,6 +58,16 @@ ConVar sv_spawn_with_suit( "sv_spawn_with_suit", "0", FCVAR_CHEAT, "Sets whether
 
 
 REGISTER_GAMERULES_CLASS( CPortalGameRules );
+
+bool CPortalGameRules::AllowThirdPersonCamera( void )
+{
+#ifdef CLIENT_DLL
+	C_Portal_Player *pPlayer = C_Portal_Player::GetLocalPortalPlayer();
+	return pPlayer && ( ( pPlayer->m_bTaunting && pPlayer->m_bTauntThirdPerson ) || g_ThirdPersonManager.IsTauntCameraTransitioning() );
+#else
+	return false;
+#endif
+}
 
 IMPLEMENT_NETWORKCLASS_ALIASED( PortalGameRulesProxy, DT_PortalGameRulesProxy )
 

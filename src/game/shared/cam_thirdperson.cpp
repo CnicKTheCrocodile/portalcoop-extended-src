@@ -62,6 +62,11 @@ void CThirdPersonManager::Init( void )
 	m_flLerpTime = 0.0f;
 
 	m_flUpOffset = CAMERA_UP_OFFSET;
+	m_bTauntCameraTransitioning = false;
+	m_bTauntCameraReturning = false;
+	m_flTauntCameraTransitionStart = 0.0f;
+	m_vecTauntCameraStart = vec3_origin;
+	m_vecTauntCameraTarget = vec3_origin;
 
 	if ( input )
 	{
@@ -95,8 +100,51 @@ void CThirdPersonManager::Update( void )
 			ToggleThirdPerson( m_bForced || cl_thirdperson.GetBool() );
 		}
 	}
+
+	if ( m_bTauntCameraTransitioning )
+	{
+		const float flTransition = RemapValClamped( gpGlobals->curtime - m_flTauntCameraTransitionStart, 0.0f, 0.45f, 0.0f, 1.0f );
+		const float flSmoothTransition = flTransition * flTransition * ( 3.0f - 2.0f * flTransition );
+		SetDesiredCameraOffset( m_vecTauntCameraStart + ( m_vecTauntCameraTarget - m_vecTauntCameraStart ) * flSmoothTransition );
+
+		if ( flTransition >= 1.0f )
+		{
+			m_bTauntCameraTransitioning = false;
+			if ( m_bTauntCameraReturning )
+			{
+				m_bTauntCameraReturning = false;
+				SetOverridingThirdPerson( false );
+				if ( input && input->CAM_IsThirdPerson() )
+					CAM_ToFirstPerson();
+				SetForcedThirdPerson( false );
+			}
+		}
+	}
 #endif
 
+}
+
+void CThirdPersonManager::SetTauntCameraActive( bool bActive )
+{
+	if ( bActive )
+	{
+		m_bTauntCameraTransitioning = true;
+		m_bTauntCameraReturning = false;
+		m_vecTauntCameraStart = GetDesiredCameraOffset();
+		m_vecTauntCameraTarget = Vector( 75.0f, 0.0f, 0.0f );
+		m_flTauntCameraTransitionStart = gpGlobals->curtime;
+		SetForcedThirdPerson( true );
+	}
+	else if ( !m_bTauntCameraReturning )
+	{
+		m_bTauntCameraTransitioning = true;
+		m_bTauntCameraReturning = true;
+		m_vecTauntCameraStart = GetDesiredCameraOffset();
+		m_vecTauntCameraTarget = vec3_origin;
+		m_flTauntCameraTransitionStart = gpGlobals->curtime;
+		// Keep third person enabled during the blend; disabling it here snaps
+		// directly to first person before the offset reaches zero.
+	}
 }
 
 Vector CThirdPersonManager::GetFinalCameraOffset( void )

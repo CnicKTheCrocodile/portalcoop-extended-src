@@ -14,6 +14,7 @@
 #include "hl2_shareddefs.h"
 
 #ifdef CLIENT_DLL
+#include "cam_thirdperson.h"
 #include "c_portal_player.h"
 #else
 
@@ -50,6 +51,16 @@ extern ConVar mp_chattime;
 
 
 REGISTER_GAMERULES_CLASS( CPortalMPGameRules );
+
+bool CPortalMPGameRules::AllowThirdPersonCamera( void )
+{
+#ifdef CLIENT_DLL
+	C_Portal_Player *pPlayer = C_Portal_Player::GetLocalPortalPlayer();
+	return pPlayer && ( ( pPlayer->m_bTaunting && pPlayer->m_bTauntThirdPerson ) || g_ThirdPersonManager.IsTauntCameraTransitioning() );
+#else
+	return false;
+#endif
+}
 
 BEGIN_NETWORK_TABLE_NOBASE( CPortalMPGameRules, DT_PortalMPGameRules )
 

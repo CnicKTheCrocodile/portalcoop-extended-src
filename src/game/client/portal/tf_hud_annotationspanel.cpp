@@ -323,6 +323,13 @@ void CTFAnnotationsPanel::AddAnnotation( IGameEvent * event )
 	{
 		return;
 	}
+
+	// Play the ping cue when the annotation event is accepted, not only when
+	// its callout happens to be visible on screen.
+	C_Portal_Player *pLocalPlayer = C_Portal_Player::GetLocalPortalPlayer();
+	if ( pLocalPlayer )
+		pLocalPlayer->EmitSound( "Player.Coop_Ping_Hud" );
+
 	Vector location;
 
 	location.x = x;
@@ -348,8 +355,6 @@ void CTFAnnotationsPanel::AddAnnotation( IGameEvent * event )
 
 		if ( pCallout->IsVisible() )
 		{
-			vgui::surface()->PlaySound( "Player.Coop_Ping_Hud" );
-
 			if ( bShowEffect )
 			{
 				if ( pFollowEntity && pFollowEntity->ParticleProp())
