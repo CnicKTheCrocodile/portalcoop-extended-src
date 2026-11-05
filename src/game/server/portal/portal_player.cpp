@@ -969,6 +969,7 @@ void RestorePortalPlayerData( CPortal_Player *pPlayer )
 
 ConVar sv_portal_coop_ping_cooldown_time( "sv_portal_coop_ping_cooldown_time", "0.5", FCVAR_REPLICATED, "Time (in seconds) between coop pings", true, 0.1f, false, 60.0f );
 ConVar sv_portal_coop_allow_ping("sv_portal_coop_allow_ping", "1", FCVAR_REPLICATED, "Sets if players are allowed to ping");
+ConVar sv_portal_coop_ping_look_taunt( "sv_portal_coop_ping_look_taunt", "0", FCVAR_REPLICATED, "If enabled, a coop ping starts the look taunt" );
 
 #define COOP_PING_SOUNDSCRIPT_NAME "Player.Coop_Ping"
 //#define COOP_PING_PARTICLE_NAME "command_target_ping"
@@ -1719,7 +1720,8 @@ void CPortal_Player::PlayCoopPingEffect( void )
 		}
 
 		EmitSound( COOP_PING_SOUNDSCRIPT_NAME );
-		StartTaunt( "look", false );
+		if ( sv_portal_coop_ping_look_taunt.GetBool() )
+			StartTaunt( "look", false );
 	}
 
 	// Note this in the player proxy
